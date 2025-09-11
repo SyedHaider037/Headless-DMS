@@ -1,48 +1,34 @@
-import { db } from "../db";
-import { users } from "../schemas/user.schema";
-import { roles } from "../schemas/role.schema";
-import { eq, or, and } from "drizzle-orm";
 import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken } from "../utils/jwtTokenAndBcrypt";
 import jwt from "jsonwebtoken";
+import { UserRepository } from "../repositories/user.repository";
 
 export class UserService {
+    private repo: UserRepository;
+    constructor() {
+        this.repo = new UserRepository();
+    }
 
     async register(username: string, email: string, password: string, role: string): Promise<any> {
 
-        const [existingUser] = await db
-            .select()
-            .from(users)
-            .where(or(
-                eq(users.username ,username),
-                eq(users.email,email))
-            )
+        const existingUser = await this.repo.findByEmailOrUsername(email, username);
         if (existingUser) {
             throw new Error("User with this email or username already exists");
         }    
 
         const hashedPassword = await hashPassword(password);
         
-        const [roleRecord] = await db
-            .select()
-            .from(roles)
-            .where(eq(roles.name, role))
+        const roleRecord = await this.repo.findRoleByName(role);
         
         if(!roleRecord.id) {
             throw new Error("Invalid role provided");
         }   
         
-        const createdUser = await db.insert(users).values({
+        const createdUser = await this.repo.createUser({
             username,
             email,
             password: hashedPassword,
             roleId: roleRecord.id,
-        })
-        .returning({
-            id: users.id,
-            username: users.username,
-            email: users.email,
-            createdAt: users.createdAt,
-        })
+        });
         
         if (!createdUser) {
             throw new Error("Failed to create user");
@@ -52,11 +38,7 @@ export class UserService {
     };
 
     async login(email: string, password: string): Promise<any> {
-        const [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, email));
-        
+        const user = await this.repo.findByEmail(email);
         if (!user) {
             throw new Error("User not found");
         }
@@ -76,10 +58,7 @@ export class UserService {
 
         const refreshToken = generateRefreshToken({ id: user.id });
 
-        const [updatedUser] = await db.update(users)
-            .set({ refreshToken })
-            .where(eq(users.id, user.id))
-            .returning();
+        const updatedUser = await this.repo.updateRefreshToken(user.id, refreshToken);
 
         if (!updatedUser) {
             throw new Error("Failed to update user with refresh token");
@@ -92,15 +71,7 @@ export class UserService {
 
     async logout(userId: string): Promise<any> {
 
-        const [user] = await db
-            .update(users)
-            .set({ refreshToken: null })
-            .where(eq(users.id, userId))
-            .returning({
-                username:users.username,
-                email: users.email,
-            });
-
+        const [user] = await this.repo.updateRefreshToken(userId, null);
         if (!user) {
             throw new Error("User not found or already logged out");
         }
@@ -124,13 +95,7 @@ export class UserService {
         if (!decoded?.id) {
             throw new Error("Invalid token payload");
         }
-        const [user] = await db
-            .select()
-            .from(users)
-            .where(and(
-                eq(users.id, decoded.id),
-                eq(users.refreshToken, oldRefreshToken)
-            ));
+        const [user] = await this.repo.findByIdAndToken(decoded.id, oldRefreshToken);
         
         if (!user) {
             throw new Error("User not found or invalid refresh token");
@@ -142,9 +107,7 @@ export class UserService {
             role: user.roleId,
         })
         const newRefreshToken = generateRefreshToken({ id: user.id });  
-        await db.update(users)
-            .set({ refreshToken: newRefreshToken })
-            .where(eq(users.id, user.id));
+        await this.repo.updateRefreshToken(user.id, newRefreshToken);
         
         return { accessToken: newAccessToken, refreshToken: newRefreshToken };    
     };    
