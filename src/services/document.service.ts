@@ -1,27 +1,28 @@
-import { db } from "../db/index";
-import { documents } from "../schemas/document.schema";
 import path  from "path";
-import { eq, ilike, or } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import fs from "fs";
+import { DocumentRespository } from "../repositories/document.repository";
 
 
 export class DocumentService {
+    private repo: DocumentRespository;
+    constructor() {
+        this.repo = new DocumentRespository();
+    }
+
     async upload(title: string, tag: string, userId: string, file: Express.Multer.File, description?: string) : Promise<any> {
 
         if (!file) throw new Error("File is required");
 
         const relativePath = path.relative(path.join(process.cwd(), "public"), file.path).replace(/\\/g, "/");
-        const document = await db.insert(documents).values({
+        const document = await this.repo.create({
             title,
             description,
             tag,
             authorId: userId,
             filePath: relativePath,
             fileType: file.mimetype,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        }).returning();
+        });
 
         if (!document) throw new Error("Failed to upload document");
 
@@ -29,7 +30,7 @@ export class DocumentService {
     }
 
     async getAll(): Promise<any> {
-        const allDocumets = await db.select().from(documents);
+        const allDocumets = await this.repo.findAll();
 
         if (allDocumets.length === 0) {
             throw new Error("No documents found");
@@ -39,7 +40,7 @@ export class DocumentService {
 
     async getById(documentId: string): Promise<any> {
 
-        const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
+        const document = await this.repo.findById(documentId);
 
         if (!document) throw new Error("Document not found");
 
@@ -48,7 +49,7 @@ export class DocumentService {
 
     async deleteById(documentId: string): Promise<any> {
 
-        const [existingDocument] = await db.select().from(documents).where(eq(documents.id, documentId));
+        const existingDocument = await this.repo.findById(documentId);
 
         if (!existingDocument) {
             throw new Error("Document not found");
@@ -56,7 +57,7 @@ export class DocumentService {
 
         const filePath = path.join(process.cwd(), "public", existingDocument.filePath);
         
-        const [deletedDocument] = await db.delete(documents).where(eq(documents.id, documentId)).returning();
+        const deletedDocument = await this.repo.delete(documentId);
 
         if (!deletedDocument) {
             throw new Error("Failed to delete document");
@@ -71,16 +72,11 @@ export class DocumentService {
     }
 
     async updateById(documentId: string, title?: string, description?: string, tag?: string): Promise<any> {
-        const [existingDocument] = await db.select().from(documents).where(eq(documents.id, documentId));
+        const existingDocument = await this.repo.findById(documentId);
 
         if (!existingDocument) throw new Error("Document not found");
         
-        const updatedDocument = await db.update(documents).set({
-            title,
-            description,
-            tag,
-            updatedAt: new Date(),
-        }).where(eq(documents.id, documentId)).returning();
+        const updatedDocument = await this.repo.update(documentId, { title, description, tag });
         
         if (!updatedDocument) throw new Error("Failed to update document");
 
@@ -88,20 +84,7 @@ export class DocumentService {
     }
 
     async search(title?: string, tag?: string, authorId?: string): Promise<any> {
-        const whereConditions = [];
-        if (title) {
-            whereConditions.push(ilike(documents.title, `%${title}%`));
-        }
-        if (tag) {
-            whereConditions.push(ilike(documents.tag, `%${tag}%`));
-        }
-        if (authorId) {
-            whereConditions.push(eq(documents.authorId, authorId));
-        }
-        const results = await db.
-            select()
-            .from(documents)
-            .where(or(...whereConditions));
+        const results = await this.repo.search(title, tag, authorId);
         if (results.length === 0) {
             throw new Error("No documents found");
         }
@@ -109,7 +92,7 @@ export class DocumentService {
     }
 
     async downloadLink(documentId: string): Promise<string> {
-        const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
+        const document = await this.repo.findById(documentId);
         if (!document) {
             throw new Error("Document not found");
         }
@@ -136,7 +119,7 @@ export class DocumentService {
             throw new Error("Invalid download token");
         }
 
-        const [document] = await db.select().from(documents).where(eq(documents.id, decoded.documentId));
+        const document = await this.repo.findById(decoded.documentId);
 
         if (!document) throw new Error("Document not found");
 
