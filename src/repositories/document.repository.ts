@@ -1,8 +1,9 @@
 import { db } from "../db"
 import { documents } from "../schemas/document.schema";
 import { eq, ilike, or } from "drizzle-orm";
+import { IDocument } from "../interfaces/document.interface";
 
-export class DocumentRespository {
+export class DocumentRespository implements IDocument {
     async create(data: {title: string, description?: string, tag: string ,authorId: string, filePath: string , fileType: string}) :Promise<any> {
         const [document] = await db.insert(documents).values({
             ...data,
