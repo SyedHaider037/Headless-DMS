@@ -1,6 +1,7 @@
 import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken } from "../utils/jwtTokenAndBcrypt";
 import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/user.repository";
+import { RegisterUserDTO, LoginUserDTO } from "../dtos/user.dto";
 
 export class UserService {
     private repo: UserRepository;
@@ -8,7 +9,8 @@ export class UserService {
         this.repo = new UserRepository();
     }
 
-    async register(username: string, email: string, password: string, role: string): Promise<any> {
+    async register(data: RegisterUserDTO): Promise<any> {
+        const { username, email, password, role } = data;
 
         const existingUser = await this.repo.findByEmailOrUsername(email, username);
         if (existingUser) {
@@ -37,7 +39,8 @@ export class UserService {
         return createdUser;
     };
 
-    async login(email: string, password: string): Promise<any> {
+    async login(data: LoginUserDTO): Promise<any> {
+        const { email, password} = data;
         const user = await this.repo.findByEmail(email);
         if (!user) {
             throw new Error("User not found");

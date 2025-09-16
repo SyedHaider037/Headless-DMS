@@ -2,7 +2,7 @@ import path  from "path";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import { DocumentRespository } from "../repositories/document.repository";
-
+import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto";
 
 export class DocumentService {
     private repo: DocumentRespository;
@@ -10,13 +10,14 @@ export class DocumentService {
         this.repo = new DocumentRespository();
     }
 
-    async upload(title: string, tag: string, userId: string, file: Express.Multer.File, description?: string) : Promise<any> {
+    async upload(data: CreateDocumentDTO) : Promise<any> {
+        const { title, tag, userId, file, description } = data;
 
         if (!file) throw new Error("File is required");
 
         const relativePath = path.relative(path.join(process.cwd(), "public"), file.path).replace(/\\/g, "/");
         const document = await this.repo.create({
-            title,
+            title,  
             description,
             tag,
             authorId: userId,
@@ -71,7 +72,9 @@ export class DocumentService {
         return { deletedDocument, filePath };
     }
 
-    async updateById(documentId: string, title?: string, description?: string, tag?: string): Promise<any> {
+    async updateById(data: UpdateDocumentDTO): Promise<any> {
+        const { documentId, title, description, tag } = data;
+
         const existingDocument = await this.repo.findById(documentId);
 
         if (!existingDocument) throw new Error("Document not found");
@@ -83,7 +86,9 @@ export class DocumentService {
         return updatedDocument;
     }
 
-    async search(title?: string, tag?: string, authorId?: string): Promise<any> {
+    async search(data: SearchDocumentsDTO): Promise<any> {
+        const { title, tag, authorId } = data;
+
         const results = await this.repo.search(title, tag, authorId);
         if (results.length === 0) {
             throw new Error("No documents found");

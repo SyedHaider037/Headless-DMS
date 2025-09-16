@@ -21,7 +21,7 @@ export const RegisterUser = async (req: Request, res: Response ) => {
 
         const {username, email, password, role} = parsed.data;
 
-        const createdUser = await userService.register(username, email, password, role);
+        const createdUser = await userService.register({username, email, password, role});
             
         return res.status(201).json({ user : createdUser , message: "User registered successfully"});
     } catch (error: any ) {
@@ -42,7 +42,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
         const { email, password } = parsed.data;
 
-        const { userData, accessToken, refreshToken } = await userService.login(email, password);
+        const { userData, accessToken, refreshToken } = await userService.login({email, password});
         
         console.log("User logged in successfully:", userData);
         return res

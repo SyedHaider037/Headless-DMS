@@ -17,7 +17,7 @@ export const uploadDocument  = async ( req: Request, res: Response) => {
         const { title, description, tag } = parsed.data;
         const file = req.file;
 
-        const document = await documentService.upload(title, tag, user.id, file!,description);
+        const document = await documentService.upload({title, tag, userId: user.id, file: file!, description});
     
         return res.status(201).json({ document, message: "Document uploaded successfully" });
     } catch (error) {
@@ -70,7 +70,7 @@ export const updateDocument = async (req: Request, res: Response) => {
 
         const { title, description, tag } = parsed.data;
 
-        const updatedDocument = await documentService.updateById(parsedId, title, description, tag);
+        const updatedDocument = await documentService.updateById({documentId: parsedId, title, description, tag});
 
         return res.status(200).json({ document: updatedDocument, message: "Document updated successfully" });
     } catch (error) {
@@ -86,7 +86,7 @@ export const searchDocuments = async (req: Request, res: Response) => {
         }
 
         const { title, tag, authorId } = parsed.data;
-        const results = await documentService.search(title, tag, authorId);
+        const results = await documentService.search({title, tag, authorId});
 
         return res.status(200).json({ documents: results, message: "Search completed successfully" });
     } catch (error) {
