@@ -1,8 +1,8 @@
-import { db } from "../db/index";
-import { rolePermissions } from "../schemas/rolePermission.schema";
-import { permissions } from "../schemas/permission.schema";
-import { eq, and } from "drizzle-orm";
 import { Request, Response, NextFunction } from "express";
+import { PermissionService } from "../services/permission.service";
+import { PermissionRepository } from "../repositories/permission.repository";
+
+const permissionService = new PermissionService(new PermissionRepository());
 
 export const canCreateReadDocument = (action : "CREATE_DOCUMENT" | "READ_DOCUMENT") => {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -15,26 +15,14 @@ export const canCreateReadDocument = (action : "CREATE_DOCUMENT" | "READ_DOCUMEN
                 return res.status(403).json({ error: "User does not have a role assigned" });
             }
 
-            const [permissionRow] = await db
-                .select()
-                .from(rolePermissions)
-                .innerJoin(
-                    permissions,
-                    eq(rolePermissions.permissionId, permissions.id)
-                )
-                .where(
-                    and(
-                        eq(rolePermissions.roleId, roleId),
-                        eq(permissions.action, action)
-                    )
-                );
+            const allowed = await permissionService.canUserPerformAction(roleId, action);
 
-            if (!permissionRow) {
-                return res.status(403).json({ error: `You are not allowed to ${action.toLowerCase()}` });
+            if(!allowed) {
+                return res.status(403).json({ error: `You are not allowed to ${action.toLowerCase()}`});
             }
             return next();
         } catch (error) {
-            console.error("Permission check failed:", error);
+            console.error("Permission checking  failed:", error);
             return res.status(500).json({ error: "Internal server error" });
         } 
     }
