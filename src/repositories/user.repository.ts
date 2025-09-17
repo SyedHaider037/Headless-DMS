@@ -2,9 +2,9 @@ import { db } from "../db/index";
 import { users } from "../schemas/user.schema";
 import { roles } from "../schemas/role.schema";
 import { eq, or, and } from "drizzle-orm";
-import { IUser } from "../interfaces/user.interface" 
+import { IUserRepository } from "../interfaces/user.interface" 
 
-export class UserRepository implements IUser {
+export class UserRepository implements IUserRepository {
     
     async findByEmailOrUsername(email: string, username: string): Promise<any> {
         const [user] = await db
@@ -66,6 +66,14 @@ export class UserRepository implements IUser {
                 eq(users.id, userId),
                 eq(users.refreshToken, refreshToken)
             ));
+        return user;
+    }
+
+    async findById(userId: string): Promise<any> {
+        const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, userId));
         return user;
     }
 }
