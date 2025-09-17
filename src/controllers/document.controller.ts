@@ -2,8 +2,9 @@ import { Request, Response,  } from "express";
 import { createDocumentSchema, updateDocumentSchema, documentSearchSchema} from "../validation/document.validation";   
 import { DocumentService } from "../services/document.service";
 import fs from "fs";
+import { DocumentRespository } from "../repositories/document.repository";
 
-const documentService= new DocumentService();
+const documentService= new DocumentService(new DocumentRespository());
 
 export const uploadDocument  = async ( req: Request, res: Response) => {
     try {

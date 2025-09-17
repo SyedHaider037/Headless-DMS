@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { registerSchema, loginSchema } from "../validation/user.validation";
 import { UserService } from "../services/user.service";
+import { UserRepository } from "../repositories/user.repository";
 
 const options = {
     httpOnly : true,
@@ -9,7 +10,7 @@ const options = {
     maxAge: 5 * 24 * 60 * 60 * 1000,
 }
 
-const userService = new UserService();
+const userService = new UserService(new UserRepository());
 
 export const RegisterUser = async (req: Request, res: Response ) => {
     try {

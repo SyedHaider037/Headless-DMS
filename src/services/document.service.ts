@@ -1,14 +1,11 @@
 import path  from "path";
 import jwt from "jsonwebtoken";
 import fs from "fs";
-import { DocumentRespository } from "../repositories/document.repository";
 import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto";
+import { IDocumentRepository } from "../interfaces/document.interface";
 
 export class DocumentService {
-    private repo: DocumentRespository;
-    constructor() {
-        this.repo = new DocumentRespository();
-    }
+    constructor(private readonly repo: IDocumentRepository) {}
 
     async upload(data: CreateDocumentDTO) : Promise<any> {
         const { title, tag, userId, file, description } = data;

@@ -1,13 +1,10 @@
 import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken } from "../utils/jwtTokenAndBcrypt";
 import jwt from "jsonwebtoken";
-import { UserRepository } from "../repositories/user.repository";
 import { RegisterUserDTO, LoginUserDTO } from "../dtos/user.dto";
+import { IUserRepository } from "../interfaces/user.interface";
 
 export class UserService {
-    private repo: UserRepository;
-    constructor() {
-        this.repo = new UserRepository();
-    }
+    constructor(private readonly repo: IUserRepository){}
 
     async register(data: RegisterUserDTO): Promise<any> {
         const { username, email, password, role } = data;

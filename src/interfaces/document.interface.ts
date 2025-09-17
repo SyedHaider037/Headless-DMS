@@ -1,4 +1,4 @@
-export interface IDocument {
+export interface IDocumentRepository {
     create(data: {title: string, description?: string, tag: string,authorId: string, filePath: string, fileType: string}) :Promise<any>;
     findAll(): Promise<any>;
     findById(documentId: string): Promise<any>
