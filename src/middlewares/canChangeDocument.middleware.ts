@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { PermissionService } from "../services/permission.service";
 import { PermissionRepository } from "../repositories/permission.repository";
+import { matchRes } from "@carbonteq/fp";
 
 const permissionService = new PermissionService(new PermissionRepository);
 
@@ -17,23 +18,25 @@ export const canChangeDocument = (action: "UPDATE_DOCUMENT" | "DELETE_DOCUMENT")
             return res.status(401).json({ error: "Unauthorized" });
         }
     
-        try {
-            const allowed = await permissionService.canUserChangeDocument(
-                user.id,
-                user.roleId,
-                documentId,
-                action,
-            )
+        
+        const allowed = await permissionService.canUserChangeDocument(
+            user.id,
+            user.roleId,
+            documentId,
+            action,
+        )
 
-            if (!allowed) {
-                return res.status(403).json({error:`You arenot allowed to ${action.toLowerCase()}`});
+        return matchRes(allowed, {
+            Ok: (allowed) =>{
+                if (!allowed) {
+                    return res.status(403).json({error:`You arenot allowed to ${action.toLowerCase()}`});
+                }
+                return next();
+            },
+            Err: (err) => {
+                console.error("Permission checking failed", err);
+                res.status(500).json({error: "Internal server error"});
             }
-
-            return next();
-            
-        } catch (error) {
-            console.error("Permission checking failed:", error);
-            return res.status(500).json({ error: "Internal server error" });
-        }
+        })        
     }
 }        

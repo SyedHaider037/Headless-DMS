@@ -3,136 +3,152 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto";
 import { IDocumentRepository } from "../interfaces/document.interface";
+import { Result } from "@carbonteq/fp";
 
 export class DocumentService {
     constructor(private readonly repo: IDocumentRepository) {}
 
-    async upload(data: CreateDocumentDTO) : Promise<any> {
-        const { title, tag, userId, file, description } = data;
+    async upload(data: CreateDocumentDTO) : Promise<Result<any, string>> {
+        const { title, tag, userId, filePath, fileType, description } = data;
 
-        if (!file) throw new Error("File is required");
-
-        const relativePath = path.relative(path.join(process.cwd(), "public"), file.path).replace(/\\/g, "/");
-        const document = await this.repo.create({
-            title,  
-            description,
-            tag,
-            authorId: userId,
-            filePath: relativePath,
-            fileType: file.mimetype,
-        });
-
-        if (!document) throw new Error("Failed to upload document");
-
-        return document;
+        return Result.Ok(data)
+            .flatMap(async(d) => await this.repo.create({
+                title: d.title,
+                description: d.description,
+                tag: d.tag,
+                authorId: d.userId,
+                filePath: d.filePath,
+                fileType: d.fileType,
+            }))
+            .mapErr((err) => {
+                console.error(`upload failed for user${userId}: ${err}`);
+                return err;
+            })
+            .toPromise();
     }
 
-    async getAll(): Promise<any> {
-        const allDocumets = await this.repo.findAll();
+    async getAll(): Promise<Result<any[], string>> {
 
-        if (allDocumets.length === 0) {
-            throw new Error("No documents found");
-        }
-        return allDocumets;
-    }
-
-    async getById(documentId: string): Promise<any> {
-
-        const document = await this.repo.findById(documentId);
-
-        if (!document) throw new Error("Document not found");
-
-        return document;
-    }
-
-    async deleteById(documentId: string): Promise<any> {
-
-        const existingDocument = await this.repo.findById(documentId);
-
-        if (!existingDocument) {
-            throw new Error("Document not found");
-        }
-
-        const filePath = path.join(process.cwd(), "public", existingDocument.filePath);
+        return Result.Ok(null)
+            .flatMap(async() => await this.repo.findAll())
+            .flatMap((docs) => docs.length > 0
+                ? Result.Ok(docs)
+                : Result.Err("No documents found"))
+            .mapErr((err) => {
+                console.error(`getAll failed: ${err}`);
+                return err;
+            })
+            .toPromise();
         
-        const deletedDocument = await this.repo.delete(documentId);
-
-        if (!deletedDocument) {
-            throw new Error("Failed to delete document");
-        }
-
-        fs.unlink(filePath, (err) => {
-            if (err) {
-                console.error("Failed to delete file:", err);
-            } 
-        });
-        return { deletedDocument, filePath };
     }
 
-    async updateById(data: UpdateDocumentDTO): Promise<any> {
+    async getById(documentId: string): Promise<Result<any, string>> {
+
+        return Result.Ok(documentId)
+            .flatMap(async(docId) => await this.repo.findById(docId))
+            .mapErr((err) => {
+                console.error(`get document by id failed: ${err}`);
+                return err;
+            })
+            .toPromise();
+    }
+
+    async deleteById(documentId: string): Promise<Result<any, string>> {
+
+        return Result.Ok(documentId)
+            .flatMap(async(docId) => await this.repo.findById(docId))
+            .flatMap((doc) => {
+                const filePath = path.join(process.cwd(), "public", doc.filePath);
+                return Result.Ok({doc, filePath});
+            })
+            .flatMap(async({filePath}) => {
+                const deletedDocument = await this.repo.delete(documentId);
+                return deletedDocument.map((deleted) => {
+                    fs.unlink(filePath, (err) => {
+                        if (err) console.error("Failed to delete file", err);
+                    });
+                    return { deletedDocument: deleted, filePath };
+                });
+            })
+            .mapErr((err) => {
+                console.error(`delete document failed: ${err}`);
+                return err;
+            })
+            .toPromise();
+    }
+
+    async updateById(data: UpdateDocumentDTO): Promise<Result<any, string>> {
         const { documentId, title, description, tag } = data;
 
-        const existingDocument = await this.repo.findById(documentId);
-
-        if (!existingDocument) throw new Error("Document not found");
-        
-        const updatedDocument = await this.repo.update(documentId, { title, description, tag });
-        
-        if (!updatedDocument) throw new Error("Failed to update document");
-
-        return updatedDocument;
+        return Result.Ok(documentId)
+            .flatMap(async () => await this.repo.findById(documentId))
+            .flatMap(async () => await this.repo.update(documentId, {title, description, tag}))
+            .mapErr((err) => {
+                console.error(`update document failed: ${err}`);
+                return err;
+            })
+            .toPromise();
     }
 
-    async search(data: SearchDocumentsDTO): Promise<any> {
-        const { title, tag, authorId } = data;
+    async search(data: SearchDocumentsDTO): Promise<Result<any[], string>> {
 
-        const results = await this.repo.search(title, tag, authorId);
-        if (results.length === 0) {
-            throw new Error("No documents found");
-        }
-        return results;    
+        return Result.Ok(data)
+            .flatMap(async (data) => await this.repo.search(data.title, data.tag, data.authorId))
+            .flatMap((results) => results.length > 0
+                ? Result.Ok(results)
+                : Result.Err("No documents match the search"))
+            .mapErr((err) => {
+                console.log(`search document failed ${err}`);
+                return err;
+            })
+            .toPromise();
     }
 
-    async downloadLink(documentId: string): Promise<string> {
-        const document = await this.repo.findById(documentId);
-        if (!document) {
-            throw new Error("Document not found");
-        }
+    async downloadLink(documentId: string): Promise<Result<string, string>> {
 
-        const downloadToken = jwt.sign(
-            { documentId: documentId },
-            process.env.DOWNLOAD_TOKEN_SECRET!,
-            { expiresIn: "10m" }
-        );
-
-        const link = `${process.env.BASE_URL}/api/v1/document/download/${downloadToken}`;
-        return link;
+        return Result.Ok(documentId)
+            .flatMap(async() => await this.repo.findById(documentId))
+            .flatMap(() => {
+                const downloadToken = jwt.sign(
+                    { documentId: documentId },
+                    process.env.DOWNLOAD_TOKEN_SECRET!,
+                    { expiresIn: "10m" }
+                );
+                const link = `${process.env.BASE_URL}/api/v1/document/download/${downloadToken}`;
+                return Result.Ok(link);
+            })
+            .mapErr((err) => {
+                console.error(`download link generation failed: ${err}`);
+                return err;
+            })
+            .toPromise();
     }
 
-    async download(downloadToken: string): Promise<any> {
+    async download(downloadToken: string): Promise<Result<{ fileName: string, filePath: string }, string>> {
 
         let decoded;
         try {
             decoded = jwt.verify(downloadToken, process.env.DOWNLOAD_TOKEN_SECRET!) as { documentId: string };
         } catch (error: any) {
-            if (error.name === "TokenExpiredError") {
-                throw new Error("Download token expired");
-            }
-            throw new Error("Invalid download token");
+            const message = error.name === "TokenExpiredError" ? "Download token expired" : "Invalid download token";
+            console.error(`download failed: ${message}`);
+            return Result.Err(message);
         }
 
-        const document = await this.repo.findById(decoded.documentId);
+        return Result.Ok(decoded.documentId)
+            .flatMap(async(documentId) => await this.repo.findById(documentId))
+            .flatMap((document) => {
+                const filePath = path.join("public", document.filePath);
+                const fileName = `${document.title}${path.extname(filePath)}`;
 
-        if (!document) throw new Error("Document not found");
-
-        const filePath = path.join("public", document.filePath);
-        const fileExt = path.extname(filePath);
-        const fileName = `${document.title}${fileExt}`;
-
-        if (!fs.existsSync(filePath)) {
-            throw new Error("File not found on server");
-        }
-
-        return {fileName, filePath};
+                return fs.existsSync(filePath)
+                    ? Result.Ok({ fileName, filePath })
+                    : Result.Err("File not found on server");
+            })
+            .mapErr((err) => {
+                console.error(`download failed: ${err}`);
+                return err;
+            })
+            .toPromise();
     }
 }

@@ -1,114 +1,104 @@
 import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken } from "../utils/jwtTokenAndBcrypt";
-import jwt from "jsonwebtoken";
 import { RegisterUserDTO, LoginUserDTO } from "../dtos/user.dto";
 import { IUserRepository } from "../interfaces/user.interface";
+import { Result } from "@carbonteq/fp";
 
 export class UserService {
     constructor(private readonly repo: IUserRepository){}
 
-    async register(data: RegisterUserDTO): Promise<any> {
+    async register(data: RegisterUserDTO): Promise<Result<any, string>> {
         const { username, email, password, role } = data;
 
-        const existingUser = await this.repo.findByEmailOrUsername(email, username);
-        if (existingUser) {
-            throw new Error("User with this email or username already exists");
-        }    
-
-        const hashedPassword = await hashPassword(password);
-        
-        const roleRecord = await this.repo.findRoleByName(role);
-        
-        if(!roleRecord.id) {
-            throw new Error("Invalid role provided");
-        }   
-        
-        const createdUser = await this.repo.createUser({
-            username,
-            email,
-            password: hashedPassword,
-            roleId: roleRecord.id,
-        });
-        
-        if (!createdUser) {
-            throw new Error("Failed to create user");
-        }
-
-        return createdUser;
+        return Result.Ok({email, username})
+            .flatMap( async() => {
+                const userExist = await this.repo.findByEmailOrUsername(email, username);
+                return userExist.isOk()
+                    ? Result.Err("User already exists")
+                    : Result.Ok(password)
+            })
+            .flatMap( async() => {
+                const hashedPassword = await hashPassword(password);
+                return Result.Ok(hashedPassword);
+            })
+            .flatMap( async(hashedPassword) => {
+                const roleRecord = await this.repo.findRoleByName(role);
+                return roleRecord.map((roleRecord) => ({hashedPassword, roleRecord}));
+            })
+            .flatMap( async({hashedPassword, roleRecord}) => await this.repo.createUser({
+                username,
+                email,
+                password: hashedPassword,
+                roleId: roleRecord.id
+            }))
+            .mapErr((err) => {
+                console.log(`User registeration failed: ${err}`);
+                return err;
+            })
+            .toPromise();
     };
 
-    async login(data: LoginUserDTO): Promise<any> {
-        const { email, password} = data;
-        const user = await this.repo.findByEmail(email);
-        if (!user) {
-            throw new Error("User not found");
-        }
+    async login(data: LoginUserDTO): Promise<Result<any, string>> {
+        const { email, password } = data;
 
-        const isPasswordValid = await verifyPassword(password, user.password);
-        
-        if (!isPasswordValid) {
-            throw new Error("Invalid password");
-        }
+        return Result.Ok(email)
+            .flatMap( async() => await this.repo.findByEmail(email))
+            .flatMap( async(user) => {
+                const isPasswordValid = await verifyPassword(password, user.password);
+                return isPasswordValid ? Result.Ok(user) : Result.Err("Invalid password");
+            })
+            .flatMap( async(user) => {
+                const accessToken = generateAccessToken({
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.roleId
+                });
+                const refreshToken = generateRefreshToken({ id: user.id });
 
-        const accessToken = generateAccessToken({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.roleId
-        });
-
-        const refreshToken = generateRefreshToken({ id: user.id });
-
-        const updatedUser = await this.repo.updateRefreshToken(user.id, refreshToken);
-
-        if (!updatedUser) {
-            throw new Error("Failed to update user with refresh token");
-        }
-
-        const {password: _password, refreshToken: _refreshToken, ...userData} = updatedUser;
-
-        return { userData, accessToken, refreshToken };
+                const updatedUser = await this.repo.updateRefreshToken(user.id, refreshToken);
+                return updatedUser.map((updated) => {
+                    const {password: _password, refreshToken: _refreshToken, ...userData} = updated;
+                    return { userData, accessToken, refreshToken };
+                });
+            })
+            .mapErr((err) => {
+                console.log(`User login failed: ${err}`);
+                return err;
+            })
+            .toPromise();
     };
 
-    async logout(userId: string): Promise<any> {
+    async logout(userId: string): Promise<Result<any, string>> {
 
-        const [user] = await this.repo.updateRefreshToken(userId, null);
-        if (!user) {
-            throw new Error("User not found or already logged out");
-        }
-
-        console.log("User logged out successfully:", user);
-        return user; 
+        return Result.Ok(userId)
+            .flatMap( async() => await this.repo.updateRefreshToken(userId, null))
+            .mapErr((err) => {
+                console.log(`User failed to logout ${err}`)
+                return err;
+            })
+            .toPromise();
     };
-    
-    async refreshToken(oldRefreshToken: string): Promise<any> {       
-        
-        let decoded;
-        try {
-            decoded = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET!) as { id: string };
-        } catch (error: any) {
-            if (error.name === "TokenExpiredError") {
-                throw new Error("Refresh token expired");
-            }
-            throw new Error("Invalid refresh token");
-        }
 
-        if (!decoded?.id) {
-            throw new Error("Invalid token payload");
-        }
-        const [user] = await this.repo.findByIdAndToken(decoded.id, oldRefreshToken);
-        
-        if (!user) {
-            throw new Error("User not found or invalid refresh token");
-        }
-        const newAccessToken = generateAccessToken({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.roleId,
-        })
-        const newRefreshToken = generateRefreshToken({ id: user.id });  
-        await this.repo.updateRefreshToken(user.id, newRefreshToken);
-        
-        return { accessToken: newAccessToken, refreshToken: newRefreshToken };    
-    };    
+    async refreshToken(userId: string, oldRefreshToken: string): Promise<Result<any, string>> {
+
+        return Result.Ok({userId, oldRefreshToken})
+            .flatMap(async() => await this.repo.findByIdAndToken(userId, oldRefreshToken))
+            .flatMap(async(user) => {
+                const newAccessToken = generateAccessToken({
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.roleId,
+                })
+                const newRefreshToken = generateRefreshToken({ id: user.id });
+
+                const updated = await this.repo.updateRefreshToken(user.id, newRefreshToken);
+                return updated.map(() => ({accessToken: newAccessToken, refreshToken: newRefreshToken}));
+            })
+            .mapErr((err) => {
+                console.error(`Refresh token flow failed: ${err}`);
+                return err;
+            })
+            .toPromise();
+    }
 }

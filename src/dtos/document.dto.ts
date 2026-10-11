@@ -2,7 +2,8 @@ export interface CreateDocumentDTO {
     title: string;
     tag: string;
     userId: string;
-    file: Express.Multer.File;
+    filePath: string;
+    fileType: string;
     description?: string; 
 }
 
