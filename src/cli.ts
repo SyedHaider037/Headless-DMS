@@ -27,14 +27,17 @@ export const createProgram = (): Command => {
         .action(async () => {
             const { container } = await import("./container.js");
             const { config } = await import("./config.js");
-            const { testConnection } = await import("./db/index.js");
+            const { testConnection, closeDatabase } = await import("./db/index.js");
             const { createApp } = await import("./app.js");
+            const { registerGracefulShutdown } = await import("./shutdown.js");
 
             await testConnection(container.logger);
             const app = createApp(container);
-            app.listen(config.port, () => {
+            // the app binds its own port; nothing outside the process is needed to serve requests
+            const server = app.listen(config.port, () => {
                 container.logger.info(`Server is running on http://localhost:${config.port}`);
             });
+            registerGracefulShutdown(server, { logger: container.logger, cleanup: closeDatabase });
         });
 
     program
