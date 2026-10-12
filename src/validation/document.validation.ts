@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { paginationSchema } from "./pagination.validation.js";
 
 export const createDocumentSchema = z.object({
     title: z.string().min(8, "Title should be al least 8 characters long"),
@@ -18,3 +19,6 @@ export const documentSearchSchema = z.object({
     authorId: z.uuid().optional(),
 });
 
+export const listDocumentsQuerySchema = paginationSchema;
+
+export const searchDocumentsQuerySchema = documentSearchSchema.extend(paginationSchema.shape);

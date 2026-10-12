@@ -1,11 +1,12 @@
 import { db } from "../db/index.js"
 import { documents } from "../schemas/document.schema.js";
-import { eq, ilike, or } from "drizzle-orm";
+import { count, desc, eq, ilike, or } from "drizzle-orm";
 import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal, notFound } from "../errors/app-error.js";
-import { Document, DocumentChanges, NewDocument } from "../entities/document.entity.js";
+import { Document, DocumentChanges, DocumentFilters, NewDocument } from "../entities/document.entity.js";
+import { PaginatedCollection, PaginationOptions, toPaginatedCollection } from "../entities/pagination.entity.js";
 export class DocumentRepository implements IDocumentRepository {
     async save(data: NewDocument) :Promise<Result<Document, AppError>> {
         try {
@@ -21,10 +22,16 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async findAll(): Promise<Result<Document[], AppError>> {
+    async findAll({ page, limit }: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
         try {
-            const result = await db.select().from(documents);
-            return result ? Result.Ok(result) : Result.Err(internal("Failed to list documents"));
+            const items = await db
+                .select()
+                .from(documents)
+                .orderBy(desc(documents.createdAt), desc(documents.id))
+                .limit(limit)
+                .offset((page - 1) * limit);
+            const [{ total }] = await db.select({ total: count() }).from(documents);
+            return Result.Ok(toPaginatedCollection(items, total, { page, limit }));
         } catch (err) {
             return Result.Err(internal("Failed to list documents"));
         }
@@ -67,7 +74,7 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
     
-    async search(title?: string, tag?: string, authorId?: string): Promise<Result<Document[], AppError>> {
+    async search({ title, tag, authorId }: DocumentFilters, { page, limit }: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
         try {
             const whereConditions = [];
             if (title) {
@@ -80,11 +87,16 @@ export class DocumentRepository implements IDocumentRepository {
                 whereConditions.push(eq(documents.authorId, authorId));
             }
     
-            const result =  await db
+            const where = or(...whereConditions);
+            const items = await db
                 .select()
                 .from(documents)
-                .where(or(...whereConditions));
-            return result ? Result.Ok(result) : Result.Err(internal("Failed to search documents"));   
+                .where(where)
+                .orderBy(desc(documents.createdAt), desc(documents.id))
+                .limit(limit)
+                .offset((page - 1) * limit);
+            const [{ total }] = await db.select({ total: count() }).from(documents).where(where);
+            return Result.Ok(toPaginatedCollection(items, total, { page, limit }));
         } catch (err) {
             return Result.Err(internal("Failed to search documents"));
         }

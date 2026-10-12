@@ -22,6 +22,12 @@ export interface NewDocument {
     fileType: string;
 }
 
+export interface DocumentFilters {
+    title?: string;
+    tag?: string;
+    authorId?: string;
+}
+
 export interface DocumentChanges {
     title?: string;
     description?: string;

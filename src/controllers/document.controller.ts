@@ -1,9 +1,10 @@
 import { Request, Response,  } from "express";
-import { createDocumentSchema, updateDocumentSchema, documentSearchSchema} from "../validation/document.validation.js";   
+import { createDocumentSchema, updateDocumentSchema, listDocumentsQuerySchema, searchDocumentsQuerySchema} from "../validation/document.validation.js";   
 import fs from "fs";
 import path from "path";
 import { container } from "../container.js";
 import { Document, PublicDocument } from "../entities/document.entity.js";
+import { PaginatedCollection } from "../entities/pagination.entity.js";
 import { sendError } from "../errors/http.js";
 import { matchRes } from "@carbonteq/fp";
 
@@ -11,6 +12,11 @@ const { documentService, logger } = container;
 
 // never expose the server-side file path to clients
 const toPublicDocument = ({ filePath, ...document }: Document): PublicDocument => document;
+
+const toPublicPage = (page: PaginatedCollection<Document>): PaginatedCollection<PublicDocument> => ({
+    ...page,
+    items: page.items.map(toPublicDocument),
+});
 
 export const uploadDocument  = async ( req: Request, res: Response) => {
 
@@ -37,10 +43,15 @@ export const uploadDocument  = async ( req: Request, res: Response) => {
 
 export const getAllDocuments = async (req: Request, res: Response) => {
     
-    const allDocuments = await documentService.getAll();
+    const parsed = listDocumentsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid pagination params", details: parsed.error.issues });
+    }
+
+    const allDocuments = await documentService.getAll(parsed.data);
 
     return matchRes(allDocuments, {
-        Ok: (documents) => res.status(200).json({ documents: documents.map(toPublicDocument), total: documents.length, message: "Documents fetched successfully" }),
+        Ok: (documents) => res.status(200).json({ documents: toPublicPage(documents), message: "Documents fetched successfully" }),
         Err: (err) => sendError(res, err)
     });
 }
@@ -91,16 +102,16 @@ export const updateDocument = async (req: Request, res: Response) => {
 
 export const searchDocuments = async (req: Request, res: Response) => {
     
-    const parsed = documentSearchSchema.safeParse(req.query);
+    const parsed = searchDocumentsQuerySchema.safeParse(req.query);
     if (!parsed.success) {
         return res.status(400).json({ error: "Invalid search params", details: parsed.error.issues });
     }
     
-    const { title, tag, authorId } = parsed.data;
-    const results = await documentService.search({title, tag, authorId});
+    const { title, tag, authorId, page, limit } = parsed.data;
+    const results = await documentService.search({title, tag, authorId}, { page, limit });
 
     return matchRes(results, {
-        Ok: (documents) => res.status(200).json({ documents: documents.map(toPublicDocument), total: documents.length, message: "Search completed successfully" }),
+        Ok: (documents) => res.status(200).json({ documents: toPublicPage(documents), message: "Search completed successfully" }),
         Err: (err) => {
             logger.error("Document search failed", { error: err.message });
             return sendError(res, err);
