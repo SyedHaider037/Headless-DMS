@@ -1,7 +1,8 @@
 import { Result } from "@carbonteq/fp";
 
+import { AppError } from "../errors/app-error.js";
 export interface IPermissionRepository {
-    findDocumentById(documentId: string): Promise<Result<any | null, string>>;
-    findRoleById(roleId: string): Promise<Result<any | null, string>>;
-    checkRolePermission(roleId: string, action: string): Promise<Result<boolean, string>>;
+    findDocumentById(documentId: string): Promise<Result<any | null, AppError>>;
+    findRoleById(roleId: string): Promise<Result<any | null, AppError>>;
+    checkRolePermission(roleId: string, action: string): Promise<Result<boolean, AppError>>;
 }

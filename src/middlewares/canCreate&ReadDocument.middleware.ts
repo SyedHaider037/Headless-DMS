@@ -24,7 +24,7 @@ export const canCreateReadDocument = (action : "CREATE_DOCUMENT" | "READ_DOCUMEN
                 return next();
             },
             Err: (err) =>{
-                logger.error("Permission check failed", { action, error: err });
+                logger.error("Permission check failed", { action, error: err.message });
                 return res.status(500).json({ error: "Internal server error" });
             }
         });    

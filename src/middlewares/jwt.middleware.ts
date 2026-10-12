@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";  
 import { users } from "../schemas/user.schema.js";
+import { AppError } from "../errors/app-error.js";
 import { container } from "../container.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
@@ -42,7 +43,7 @@ export const verifyAuthToken = async (req: Request, res: Response, next: NextFun
 
     const user = await container.authService.verifyToken(decoded.id);
 
-    return matchRes<any, string, void>(user,{
+    return matchRes<any, AppError, void>(user,{
         Ok: (decodedUser) => {
             req.user = decodedUser;
             return next();

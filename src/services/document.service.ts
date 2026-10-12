@@ -7,10 +7,11 @@ import { Result } from "@carbonteq/fp";
 import { config } from "../config.js";
 import { ILogger } from "../interfaces/logger.interface.js";
 
+import { AppError, notFound, unauthorized } from "../errors/app-error.js";
 export class DocumentService {
     constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
 
-    async upload(data: CreateDocumentDTO) : Promise<Result<any, string>> {
+    async upload(data: CreateDocumentDTO) : Promise<Result<any, AppError>> {
         const { title, tag, userId, filePath, fileType, description } = data;
 
         return Result.Ok(data)
@@ -23,39 +24,39 @@ export class DocumentService {
                 fileType: d.fileType,
             }))
             .mapErr((err) => {
-                this.logger.error("Document upload failed", { userId, error: err });
+                this.logger.error("Document upload failed", { userId, error: err.message });
                 return err;
             })
             .toPromise();
     }
 
-    async getAll(): Promise<Result<any[], string>> {
+    async getAll(): Promise<Result<any[], AppError>> {
 
         return Result.Ok(null)
             .flatMap(async() => await this.repo.findAll())
             .flatMap((docs) => docs.length > 0
                 ? Result.Ok(docs)
-                : Result.Err("No documents found"))
+                : Result.Err(notFound("No documents found")))
             .mapErr((err) => {
-                this.logger.error("Fetching documents failed", { error: err });
+                this.logger.error("Fetching documents failed", { error: err.message });
                 return err;
             })
             .toPromise();
         
     }
 
-    async getById(documentId: string): Promise<Result<any, string>> {
+    async getById(documentId: string): Promise<Result<any, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
             .mapErr((err) => {
-                this.logger.error("Fetching document failed", { documentId, error: err });
+                this.logger.error("Fetching document failed", { documentId, error: err.message });
                 return err;
             })
             .toPromise();
     }
 
-    async deleteById(documentId: string): Promise<Result<any, string>> {
+    async deleteById(documentId: string): Promise<Result<any, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
@@ -73,40 +74,40 @@ export class DocumentService {
                 });
             })
             .mapErr((err) => {
-                this.logger.error("Document delete failed", { documentId, error: err });
+                this.logger.error("Document delete failed", { documentId, error: err.message });
                 return err;
             })
             .toPromise();
     }
 
-    async updateById(data: UpdateDocumentDTO): Promise<Result<any, string>> {
+    async updateById(data: UpdateDocumentDTO): Promise<Result<any, AppError>> {
         const { documentId, title, description, tag } = data;
 
         return Result.Ok(documentId)
             .flatMap(async () => await this.repo.findById(documentId))
             .flatMap(async () => await this.repo.update(documentId, {title, description, tag}))
             .mapErr((err) => {
-                this.logger.error("Document update failed", { documentId, error: err });
+                this.logger.error("Document update failed", { documentId, error: err.message });
                 return err;
             })
             .toPromise();
     }
 
-    async search(data: SearchDocumentsDTO): Promise<Result<any[], string>> {
+    async search(data: SearchDocumentsDTO): Promise<Result<any[], AppError>> {
 
         return Result.Ok(data)
             .flatMap(async (data) => await this.repo.search(data.title, data.tag, data.authorId))
             .flatMap((results) => results.length > 0
                 ? Result.Ok(results)
-                : Result.Err("No documents match the search"))
+                : Result.Err(notFound("No documents match the search")))
             .mapErr((err) => {
-                this.logger.error("Document search failed", { error: err });
+                this.logger.error("Document search failed", { error: err.message });
                 return err;
             })
             .toPromise();
     }
 
-    async downloadLink(documentId: string): Promise<Result<string, string>> {
+    async downloadLink(documentId: string): Promise<Result<string, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async() => await this.repo.findById(documentId))
@@ -120,13 +121,13 @@ export class DocumentService {
                 return Result.Ok(link);
             })
             .mapErr((err) => {
-                this.logger.error("Download link generation failed", { documentId, error: err });
+                this.logger.error("Download link generation failed", { documentId, error: err.message });
                 return err;
             })
             .toPromise();
     }
 
-    async download(downloadToken: string): Promise<Result<{ fileName: string, filePath: string }, string>> {
+    async download(downloadToken: string): Promise<Result<{ fileName: string, filePath: string }, AppError>> {
 
         let decoded;
         try {
@@ -134,7 +135,7 @@ export class DocumentService {
         } catch (error: any) {
             const message = error.name === "TokenExpiredError" ? "Download token expired" : "Invalid download token";
             this.logger.warn("Download token rejected", { reason: message });
-            return Result.Err(message);
+            return Result.Err(unauthorized(message));
         }
 
         return Result.Ok(decoded.documentId)
@@ -145,10 +146,10 @@ export class DocumentService {
 
                 return fs.existsSync(filePath)
                     ? Result.Ok({ fileName, filePath })
-                    : Result.Err("File not found on server");
+                    : Result.Err(notFound("File not found on server"));
             })
             .mapErr((err) => {
-                this.logger.error("Download failed", { error: err });
+                this.logger.error("Download failed", { error: err.message });
                 return err;
             })
             .toPromise();

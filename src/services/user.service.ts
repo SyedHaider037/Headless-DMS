@@ -4,18 +4,19 @@ import { IUserRepository } from "../interfaces/user.interface.js";
 import { Result } from "@carbonteq/fp";
 import { ILogger } from "../interfaces/logger.interface.js";
 
+import { AppError, conflict, internal, unauthorized } from "../errors/app-error.js";
 export class UserService {
     constructor(private readonly repo: IUserRepository, private readonly logger: ILogger){}
 
-    async register(data: RegisterUserDTO): Promise<Result<any, string>> {
+    async register(data: RegisterUserDTO): Promise<Result<any, AppError>> {
         const { username, email, password } = data;
 
         return Result.Ok({email, username})
             .flatMap( async() => {
                 const userExist = await this.repo.findByEmailOrUsername(email, username);
-                return userExist.isOk()
-                    ? Result.Err("User already exists")
-                    : Result.Ok(password)
+                if (userExist.isOk()) return Result.Err(conflict("User with this email or username already exists"));
+                // "not found" is the expected case here; any other error is a real failure
+                return userExist.unwrapErr().kind === "NotFound" ? Result.Ok(password) : Result.Err(userExist.unwrapErr());
             })
             .flatMap( async() => {
                 const hashedPassword = await hashPassword(password);
@@ -23,7 +24,9 @@ export class UserService {
             })
             .flatMap( async(hashedPassword) => {
                 const roleRecord = await this.repo.findRoleByName("USER");
-                return roleRecord.map((roleRecord) => ({hashedPassword, roleRecord}));
+                return roleRecord
+                    .mapErr((err) => err.kind === "NotFound" ? internal("Default role USER is missing; run the seeder") : err)
+                    .map((roleRecord) => ({hashedPassword, roleRecord}));
             })
             .flatMap( async({hashedPassword, roleRecord}) => await this.repo.createUser({
                 username,
@@ -32,20 +35,23 @@ export class UserService {
                 roleId: roleRecord.id
             }))
             .mapErr((err) => {
-                this.logger.warn("User registration failed", { error: err });
+                this.logger.warn("User registration failed", { error: err.message });
                 return err;
             })
             .toPromise();
     };
 
-    async login(data: LoginUserDTO): Promise<Result<any, string>> {
+    async login(data: LoginUserDTO): Promise<Result<any, AppError>> {
         const { email, password } = data;
 
         return Result.Ok(email)
-            .flatMap( async() => await this.repo.findByEmail(email))
+            .flatMap( async() => {
+                const found = await this.repo.findByEmail(email);
+                return found.mapErr((err) => err.kind === "NotFound" ? unauthorized("Invalid email or password") : err);
+            })
             .flatMap( async(user) => {
                 const isPasswordValid = await verifyPassword(password, user.password);
-                return isPasswordValid ? Result.Ok(user) : Result.Err("Invalid password");
+                return isPasswordValid ? Result.Ok(user) : Result.Err(unauthorized("Invalid email or password"));
             })
             .flatMap( async(user) => {
                 const accessToken = generateAccessToken({
@@ -63,27 +69,30 @@ export class UserService {
                 });
             })
             .mapErr((err) => {
-                this.logger.warn("User login failed", { error: err });
+                this.logger.warn("User login failed", { error: err.message });
                 return err;
             })
             .toPromise();
     };
 
-    async logout(userId: string): Promise<Result<any, string>> {
+    async logout(userId: string): Promise<Result<any, AppError>> {
 
         return Result.Ok(userId)
             .flatMap( async() => await this.repo.updateRefreshToken(userId, null))
             .mapErr((err) => {
-                this.logger.warn("User logout failed", { userId, error: err });
+                this.logger.warn("User logout failed", { userId, error: err.message });
                 return err;
             })
             .toPromise();
     };
 
-    async refreshToken(userId: string, oldRefreshToken: string): Promise<Result<any, string>> {
+    async refreshToken(userId: string, oldRefreshToken: string): Promise<Result<any, AppError>> {
 
         return Result.Ok({userId, oldRefreshToken})
-            .flatMap(async() => await this.repo.findByIdAndToken(userId, oldRefreshToken))
+            .flatMap(async() => {
+                const found = await this.repo.findByIdAndToken(userId, oldRefreshToken);
+                return found.mapErr((err) => err.kind === "NotFound" ? unauthorized("Invalid refresh token") : err);
+            })
             .flatMap(async(user) => {
                 const newAccessToken = generateAccessToken({
                     id: user.id,
@@ -97,7 +106,7 @@ export class UserService {
                 return updated.map(() => ({accessToken: newAccessToken, refreshToken: newRefreshToken}));
             })
             .mapErr((err) => {
-                this.logger.warn("Token refresh failed", { userId, error: err });
+                this.logger.warn("Token refresh failed", { userId, error: err.message });
                 return err;
             })
             .toPromise();

@@ -29,7 +29,7 @@ export const RegisterUser = async (req: Request, res: Response ) => {
     return matchRes(createdUser, {
         Ok: (user) =>  res.status(201).json({ user, message: "User registered successfully"}),
         Err: (err) => {
-            logger.error("Registration failed", { error: err });
+            logger.error("Registration failed", { error: err.message });
             return res.status(500).json({ error: "Internal server error" });
         }
     })
@@ -63,7 +63,7 @@ export const loginUser = async (req: Request, res: Response) => {
                     }); 
             },
             Err: (err) => {
-                logger.error("Login failed", { error: err });
+                logger.error("Login failed", { error: err.message });
                 return res.status(500).json({ error: "Internal server error" });
             }    
         })
@@ -85,7 +85,7 @@ export const logoutUser = async(req: Request, res: Response) => {
                 .clearCookie("refreshToken", options)
                 .json({ message :"User logged out successfully"}),
         Err:(err) => {
-            logger.error("Logout failed", { error: err });
+            logger.error("Logout failed", { error: err.message });
             return res.status(500).json({ error: "Internal server error" });
         }
     }) 
@@ -126,7 +126,7 @@ export const refreshToken = async (req: Request, res: Response) => {
                 message: "Access token refreshed successfully" 
             }),
         Err: (err) => {
-            logger.error("Token refresh failed", { error: err });
+            logger.error("Token refresh failed", { error: err.message });
             return res.status(500).json({ error: "Internal server error" });
         }
     });

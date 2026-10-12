@@ -100,7 +100,7 @@ export const searchDocuments = async (req: Request, res: Response) => {
     return matchRes(results, {
         Ok: (documents) => res.status(200).json({ documents: documents.map(toPublicDocument), message: "Search completed successfully" }),
         Err: (err) => {
-            logger.error("Document search failed", { error: err });
+            logger.error("Document search failed", { error: err.message });
             return res.status(500).json({ error: "Internal server error"})
         }
     });

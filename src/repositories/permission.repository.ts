@@ -7,9 +7,10 @@ import { eq, and } from "drizzle-orm";
 import { IPermissionRepository } from "../interfaces/permission.interface.js";
 import { Result } from "@carbonteq/fp";
 
+import { AppError, internal } from "../errors/app-error.js";
 export class PermissionRepository implements IPermissionRepository{
 
-    async findDocumentById(documentId: string): Promise<Result<any | null, string>> {
+    async findDocumentById(documentId: string): Promise<Result<any | null, AppError>> {
         try {
             const [document] = await db
                 .select()
@@ -17,11 +18,11 @@ export class PermissionRepository implements IPermissionRepository{
                 .where(eq(documents.id, documentId))
             return document ? Result.Ok(document) : Result.Ok(null); 
         } catch (error) {
-            return Result.Err("Failed to Fetch Document");
+            return Result.Err(internal("Failed to fetch document"));
         }    
     }
 
-    async findRoleById(roleId :string): Promise<Result<any | null, string>> {
+    async findRoleById(roleId :string): Promise<Result<any | null, AppError>> {
         try {
             const [role] = await db
                 .select()
@@ -29,11 +30,11 @@ export class PermissionRepository implements IPermissionRepository{
                 .where(eq(roles.id, roleId));
             return role ? Result.Ok(role) : Result.Ok(null);
         } catch (error) {
-            return Result.Err("Failed to fetch Role");
+            return Result.Err(internal("Failed to fetch role"));
         }
     }
 
-    async checkRolePermission(roleId: string, action: string): Promise<Result<boolean, string>> {
+    async checkRolePermission(roleId: string, action: string): Promise<Result<boolean, AppError>> {
         try {
             const [permission] = await db
                 .select()
@@ -47,7 +48,7 @@ export class PermissionRepository implements IPermissionRepository{
                 );
             return  Result.Ok(!!permission);
         } catch (error) {
-            return Result.Err("Failed to fetch Permissions");
+            return Result.Err(internal("Failed to check role permission"));
         }
     }
 }

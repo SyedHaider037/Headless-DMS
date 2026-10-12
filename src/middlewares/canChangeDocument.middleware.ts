@@ -33,7 +33,7 @@ export const canChangeDocument = (action: "UPDATE_DOCUMENT" | "DELETE_DOCUMENT")
                 return next();
             },
             Err: (err) => {
-                logger.error("Permission check failed", { action, error: err });
+                logger.error("Permission check failed", { action, error: err.message });
                 res.status(500).json({error: "Internal server error"});
             }
         })        
