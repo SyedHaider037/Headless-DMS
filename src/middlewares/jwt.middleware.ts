@@ -1,11 +1,9 @@
-import { NextFunction, Request, Response } from "express";  
+import { NextFunction, Request, Response } from "express";
 import { AuthenticatedUser } from "../entities/user.entity.js";
 import { AppError } from "../errors/app-error.js";
 import { container } from "../container.js";
 import { sendError } from "../errors/http.js";
 import { matchRes } from "@carbonteq/fp";
-import jwt from "jsonwebtoken";
-import { config } from "../config.js";
 
 declare global {
     namespace Express {
@@ -13,40 +11,19 @@ declare global {
             user?: AuthenticatedUser; 
         }
     }
-}     
+}
 
-type MyToken = {
-    id: string;
-    email: string;
-    username: string;
-}    
+const { authHandler } = container;
 
+// finds the credential on the request and lets the configured IAuthHandler decide who the caller is
 export const verifyAuthToken = async (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies?.accessToken || req.headers.authorization?.replace("Bearer ", "");
 
-    if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-    }
-    
-    let decoded;
-    try {
-        decoded = jwt.verify(token, config.accessToken.secret) as MyToken;
-    } catch (error: any) {
-        if (error.name === "TokenExpiredError") {
-            return res.status(401).json({ error: "Access token expired" });      
-        }
-        return res.status(401).json({ error: "Invalid access token" });   
-    }
-
-    if (!decoded.id) {
-        return res.status(401).json({ error: "Invalid access token payload" });
-    }
-
-    const user = await container.authService.verifyToken(decoded.id);
+    const user = await authHandler.authenticate({ token });
 
     return matchRes<AuthenticatedUser, AppError, void>(user,{
-        Ok: (decodedUser) => {
-            req.user = decodedUser;
+        Ok: (authenticatedUser) => {
+            req.user = authenticatedUser;
             return next();
         },
         Err: (error) => sendError(res, error)

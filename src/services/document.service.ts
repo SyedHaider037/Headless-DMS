@@ -1,23 +1,22 @@
 import path  from "path";
-import jwt, { SignOptions } from "jsonwebtoken";
 import fs from "fs";
 import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto.js";
 import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 import { config } from "../config.js";
+import { ITokenService } from "../interfaces/token.interface.js";
 import { ILogger } from "../interfaces/logger.interface.js";
 
-import { AppError, notFound, unauthorized } from "../errors/app-error.js";
-import { Document } from "../entities/document.entity.js";
+import { AppError, notFound } from "../errors/app-error.js";
+import { Document, DocumentSort } from "../entities/document.entity.js";
 import { PaginatedCollection, PaginationOptions } from "../entities/pagination.entity.js";
+
 export class DocumentService {
-    constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
+    constructor(private readonly repo: IDocumentRepository, private readonly tokens: ITokenService, private readonly logger: ILogger) {}
 
     async upload(data: CreateDocumentDTO) : Promise<Result<Document, AppError>> {
-        const { title, tag, userId, filePath, fileType, description } = data;
-
         return Result.Ok(data)
-            .flatMap(async(d) => await this.repo.save({
+            .flatMap((d) => Document.create({
                 title: d.title,
                 description: d.description,
                 tag: d.tag,
@@ -25,8 +24,9 @@ export class DocumentService {
                 filePath: d.filePath,
                 fileType: d.fileType,
             }))
+            .flatMap(async(document) => await this.repo.save(document))
             .mapErr((err) => {
-                this.logger.error("Document upload failed", { userId, error: err.message });
+                this.logger.error("Document upload failed", { userId: data.userId, error: err.message });
                 return err;
             })
             .toPromise();
@@ -41,7 +41,7 @@ export class DocumentService {
                 return err;
             })
             .toPromise();
-        
+
     }
 
     async getById(documentId: string): Promise<Result<Document, AppError>> {
@@ -59,12 +59,9 @@ export class DocumentService {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
-            .flatMap((doc) => {
-                const filePath = path.join(process.cwd(), "public", doc.filePath);
-                return Result.Ok({doc, filePath});
-            })
-            .flatMap(async({filePath}) => {
-                const deletedDocument = await this.repo.delete(documentId);
+            .flatMap(async(document) => {
+                const filePath = path.join(process.cwd(), "public", document.filePath);
+                const deletedDocument = await this.repo.delete(document.id);
                 return deletedDocument.map((deleted) => {
                     fs.unlink(filePath, (err) => {
                         if (err) this.logger.error("Failed to delete file from disk", { documentId, error: err.message });
@@ -84,7 +81,15 @@ export class DocumentService {
 
         return Result.Ok(documentId)
             .flatMap(async () => await this.repo.findById(documentId))
-            .flatMap(async () => await this.repo.update(documentId, {title, description, tag}))
+            .flatMap((document) => {
+                // every change goes through the entity, which enforces its own rules
+                let changed: Result<Document, AppError> = Result.Ok(document);
+                if (title !== undefined) changed = changed.flatMap((d) => d.rename(title));
+                if (tag !== undefined) changed = changed.flatMap((d) => d.changeTag(tag));
+                if (description !== undefined) changed = changed.flatMap((d) => d.changeDescription(description));
+                return changed;
+            })
+            .flatMap(async (document) => await this.repo.update(document))
             .mapErr((err) => {
                 this.logger.error("Document update failed", { documentId, error: err.message });
                 return err;
@@ -92,10 +97,10 @@ export class DocumentService {
             .toPromise();
     }
 
-    async search(data: SearchDocumentsDTO, options: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
+    async search(data: SearchDocumentsDTO, options: PaginationOptions, sort?: DocumentSort): Promise<Result<PaginatedCollection<Document>, AppError>> {
 
         return Result.Ok(data)
-            .flatMap(async (data) => await this.repo.search({ title: data.title, tag: data.tag, authorId: data.authorId }, options))
+            .flatMap(async (data) => await this.repo.search(data, options, sort))
             .mapErr((err) => {
                 this.logger.error("Document search failed", { error: err.message });
                 return err;
@@ -108,11 +113,7 @@ export class DocumentService {
         return Result.Ok(documentId)
             .flatMap(async() => await this.repo.findById(documentId))
             .flatMap(() => {
-                const downloadToken = jwt.sign(
-                    { documentId: documentId },
-                    config.downloadToken.secret,
-                    { expiresIn: config.downloadToken.expiry as SignOptions["expiresIn"] }
-                );
+                const downloadToken = this.tokens.createDownloadToken(documentId);
                 const link = `${config.baseUrl}/api/v1/document/download/${downloadToken}`;
                 return Result.Ok(link);
             })
@@ -125,17 +126,8 @@ export class DocumentService {
 
     async download(downloadToken: string): Promise<Result<{ fileName: string, filePath: string }, AppError>> {
 
-        let decoded;
-        try {
-            decoded = jwt.verify(downloadToken, config.downloadToken.secret) as { documentId: string };
-        } catch (error: any) {
-            const message = error.name === "TokenExpiredError" ? "Download token expired" : "Invalid download token";
-            this.logger.warn("Download token rejected", { reason: message });
-            return Result.Err(unauthorized(message));
-        }
-
-        return Result.Ok(decoded.documentId)
-            .flatMap(async(documentId) => await this.repo.findById(documentId))
+        return this.tokens.verifyDownloadToken(downloadToken)
+            .flatMap(async({ documentId }) => await this.repo.findById(documentId))
             .flatMap((document) => {
                 const filePath = path.join("public", document.filePath);
                 const fileName = `${document.title}${path.extname(filePath)}`;

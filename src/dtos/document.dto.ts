@@ -18,4 +18,7 @@ export interface SearchDocumentsDTO {
     title?: string;
     tag?: string;
     authorId?: string;
+    createdFrom?: Date;
+    createdTo?: Date;
+    fileType?: string;
 }

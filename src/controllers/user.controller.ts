@@ -2,8 +2,9 @@ import { Request, Response } from "express";
 import { registerSchema, loginSchema } from "../validation/user.validation.js";
 import { container } from "../container.js";
 import { sendError } from "../errors/http.js";
+import { unauthorized } from "../errors/app-error.js";
+import { parseInput } from "../validation/parse.js";
 import { matchRes } from "@carbonteq/fp";
-import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 
 const options = {
@@ -17,13 +18,10 @@ const { userService, logger } = container;
 
 export const RegisterUser = async (req: Request, res: Response ) => {
     
-    const parsed = registerSchema.safeParse(req.body);
-        
-    if (!parsed.success) {
-        return res.status(400).json({ error: "Validation failed", details: parsed.error.issues});
-    }
+    const input = parseInput(registerSchema, req.body);
+    if (input.isErr()) return sendError(res, input.unwrapErr());
 
-    const {username, email, password} = parsed.data;
+    const {username, email, password} = input.unwrap();
 
     const createdUser = await userService.register({username, email, password});
         
@@ -39,13 +37,10 @@ export const RegisterUser = async (req: Request, res: Response ) => {
 
 export const loginUser = async (req: Request, res: Response) => {
     
-        const parsed = loginSchema.safeParse(req.body);
+        const input = parseInput(loginSchema, req.body);
+        if (input.isErr()) return sendError(res, input.unwrapErr());
 
-        if (!parsed.success) {
-            return res.status(400).json({ error: "Validation failed",  details: parsed.error.issues});
-        }
-
-        const { email, password } = parsed.data;
+        const { email, password } = input.unwrap();
 
         const result = await userService.login({email, password});
         
@@ -72,9 +67,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
 export const logoutUser = async(req: Request, res: Response) => {
 
-    if (!req.user) {
-        return res.status(400).json({ error: "No token provoided"});
-    }
+    if (!req.user) return sendError(res, unauthorized("Authentication required"));
         
     const user = await userService.logout(req.user.id);
     
@@ -94,27 +87,11 @@ export const logoutUser = async(req: Request, res: Response) => {
 
 export const refreshToken = async (req: Request, res: Response) => {
     
-    const oldRefreshToken = req.cookies.refreshToken;
+    const oldRefreshToken = req.cookies?.refreshToken;
 
-    if (!oldRefreshToken) {
-        return res.status(401).json({ error: "No refresh token provided" });
-    } 
+    if (!oldRefreshToken) return sendError(res, unauthorized("No refresh token provided"));
 
-    let decoded;
-    try {
-        decoded = jwt.verify(oldRefreshToken, config.refreshToken.secret) as { id : string};
-    } catch (error: any) {
-        if (error.name === "TokenExpiredError") {
-            return res.status(401).json({ error: "Refresh token expired" });
-        }
-        return res.status(401).json({ error: "Invalid refresh token" });   
-    }
-
-    if (!decoded?.id) {
-        return res.status(401).json({ error: "Invalid refresh token payload" });
-    }
-        
-    const result = await userService.refreshToken(decoded.id, oldRefreshToken);
+    const result = await userService.refreshToken(oldRefreshToken);
 
     return matchRes(result,{
         Ok: ({accessToken, refreshToken}) =>  

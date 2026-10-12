@@ -4,12 +4,15 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/index.ts serve",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/index.js serve",
     "drizzle:generate": "tsx node_modules/drizzle-kit/bin.cjs generate",
     "drizzle:migrate": "drizzle-kit migrate",
-    "seed": "tsx src/db/seeder/seederRun.ts"
+    "migrate": "tsx src/index.ts migrate",
+    "seed": "tsx src/index.ts seed",
+    "migrate:prod": "node dist/index.js migrate",
+    "seed:prod": "node dist/index.js seed"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +24,7 @@
   "dependencies": {
     "@carbonteq/fp": "^0.8.2",
     "bcrypt": "^6.0.0",
+    "commander": "^14.0.3",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.4",

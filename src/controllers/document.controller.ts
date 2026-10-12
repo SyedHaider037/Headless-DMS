@@ -1,54 +1,62 @@
 import { Request, Response,  } from "express";
 import { createDocumentSchema, updateDocumentSchema, listDocumentsQuerySchema, searchDocumentsQuerySchema} from "../validation/document.validation.js";   
 import fs from "fs";
-import path from "path";
 import { container } from "../container.js";
 import { Document, PublicDocument } from "../entities/document.entity.js";
 import { PaginatedCollection } from "../entities/pagination.entity.js";
 import { sendError } from "../errors/http.js";
+import { unauthorized, validation } from "../errors/app-error.js";
+import { parseInput } from "../validation/parse.js";
+import { storedFilePath } from "../middlewares/multer.middleware.js";
 import { matchRes } from "@carbonteq/fp";
 
 const { documentService, logger } = container;
 
-// never expose the server-side file path to clients
-const toPublicDocument = ({ filePath, ...document }: Document): PublicDocument => document;
-
+// the entity decides what clients may see: the server-side file path never leaves
 const toPublicPage = (page: PaginatedCollection<Document>): PaginatedCollection<PublicDocument> => ({
     ...page,
-    items: page.items.map(toPublicDocument),
+    items: page.items.map((document) => document.toPublic()),
 });
+
+// a rejected upload must not leave its file on disk
+const discardUpload = async (file?: Express.Multer.File) => {
+    if (file) await fs.promises.unlink(file.path).catch(() => undefined);
+};
 
 export const uploadDocument  = async ( req: Request, res: Response) => {
 
-    const user = req.user; 
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
-    const parsed = createDocumentSchema.safeParse(req.body);
-
-    if (!parsed.success) return res.status(400).json({error: "Validation failed",details: parsed.error.issues});
-
-    const { title, description, tag } = parsed.data;
+    const user = req.user;
     const file = req.file;
+    if (!user) {
+        await discardUpload(file);
+        return sendError(res, unauthorized("Authentication required"));
+    }
 
-    if (!file) return res.status(400).json({ error: "File is required"});
+    const input = parseInput(createDocumentSchema, req.body);
+    if (input.isErr()) {
+        await discardUpload(file);
+        return sendError(res, input.unwrapErr());
+    }
+    if (!file) return sendError(res, validation("File is required"));
 
-    const relativePath = path.relative(path.join(process.cwd(), "public"), file.path).replace(/\\/g, "/");
-
-    const document = await documentService.upload({title, tag, userId: user.id, filePath: relativePath, fileType: file.mimetype, description});
+    const { title, description, tag } = input.unwrap();
+    const document = await documentService.upload({title, tag, userId: user.id, filePath: storedFilePath(file), fileType: file.mimetype, description});
 
     return matchRes(document, {
-        Ok: (saved) => res.status(201).json({ document: toPublicDocument(saved), message: "Document uploaded successfully" }),
-        Err: (err) => sendError(res, err)
+        Ok: (saved) => res.status(201).json({ document: saved.toPublic(), message: "Document uploaded successfully" }),
+        Err: (err) => {
+            void discardUpload(file);
+            return sendError(res, err);
+        }
     });
 }
 
 export const getAllDocuments = async (req: Request, res: Response) => {
     
-    const parsed = listDocumentsQuerySchema.safeParse(req.query);
-    if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid pagination params", details: parsed.error.issues });
-    }
+    const query = parseInput(listDocumentsQuerySchema, req.query);
+    if (query.isErr()) return sendError(res, query.unwrapErr());
 
-    const allDocuments = await documentService.getAll(parsed.data);
+    const allDocuments = await documentService.getAll(query.unwrap());
 
     return matchRes(allDocuments, {
         Ok: (documents) => res.status(200).json({ documents: toPublicPage(documents), message: "Documents fetched successfully" }),
@@ -60,11 +68,10 @@ export const getDocumentById = async(req: Request, res: Response) => {
     
     const parsedId = req.params.id;
 
-    if (!parsedId) return res.status(400).json({ error: "Document ID is required" });
     const document = await documentService.getById(parsedId);
 
     return matchRes(document, {
-        Ok: (found) => res.status(200).json({ document: toPublicDocument(found), message: "Document fetched successfully" }),
+        Ok: (found) => res.status(200).json({ document: found.toPublic(), message: "Document fetched successfully" }),
         Err: (err) => sendError(res, err)
     });
 }
@@ -73,7 +80,6 @@ export const deleteDocumentById = async (req: Request, res: Response) => {
 
     const parsedId = req.params.id;
 
-    if (!parsedId) return res.status(400).json({ error: "Document ID is required" });   
     const document = await documentService.deleteById(parsedId);
 
     return matchRes(document, {
@@ -86,29 +92,26 @@ export const updateDocument = async (req: Request, res: Response) => {
     
     const parsedId = req.params.id;
 
-    const parsed = updateDocumentSchema.safeParse(req.body);
+    const input = parseInput(updateDocumentSchema, req.body);
+    if (input.isErr()) return sendError(res, input.unwrapErr());
 
-    if (!parsed.success) return res.status(400).json({ error: "Validation failed" , details: parsed.error.issues});
-
-    const { title, description, tag } = parsed.data;
+    const { title, description, tag } = input.unwrap();
 
     const updatedDocument = await documentService.updateById({documentId: parsedId, title, description, tag});
 
     return matchRes(updatedDocument, {
-        Ok: (updated) => res.status(200).json({ document: toPublicDocument(updated), message: "Document updated successfully" }),
+        Ok: (updated) => res.status(200).json({ document: updated.toPublic(), message: "Document updated successfully" }),
         Err: (err) => sendError(res, err)
     });
 }
 
 export const searchDocuments = async (req: Request, res: Response) => {
     
-    const parsed = searchDocumentsQuerySchema.safeParse(req.query);
-    if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid search params", details: parsed.error.issues });
-    }
-    
-    const { title, tag, authorId, page, limit } = parsed.data;
-    const results = await documentService.search({title, tag, authorId}, { page, limit });
+    const query = parseInput(searchDocumentsQuerySchema, req.query);
+    if (query.isErr()) return sendError(res, query.unwrapErr());
+
+    const { page, limit, sortBy, sortOrder, ...filters } = query.unwrap();
+    const results = await documentService.search(filters, { page, limit }, { sortBy, sortOrder });
 
     return matchRes(results, {
         Ok: (documents) => res.status(200).json({ documents: toPublicPage(documents), message: "Search completed successfully" }),
@@ -122,8 +125,6 @@ export const searchDocuments = async (req: Request, res: Response) => {
 export const generateDownloadLink = async (req: Request, res: Response) => {
 
         const parsedId = req.params.id;
-
-        if (!parsedId) return res.status(400).json({ error: "Document ID is required" });
 
         const linkresult  = await documentService.downloadLink(parsedId);
 

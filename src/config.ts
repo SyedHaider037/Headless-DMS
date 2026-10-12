@@ -14,6 +14,15 @@ const envSchema = z.object({
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     DOWNLOAD_LINK_EXPIRY: z.string().min(1).default("10m"),
     BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(10),
+    MAX_UPLOAD_MB: z.coerce.number().positive().default(5),
+    DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+// the admin account is optional: without valid values the seed simply skips it
+const adminSchema = z.object({
+    ADMIN_USERNAME: z.string().min(1).default("administrator"),
+    ADMIN_EMAIL: z.email(),
+    ADMIN_PASSWORD: z.string().min(8),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -26,6 +35,8 @@ if (!parsed.success) {
 
 const env = parsed.data;
 
+const adminParsed = adminSchema.safeParse(process.env);
+
 export const config = {
     nodeEnv: env.NODE_ENV,
     isProduction: env.NODE_ENV === "production",
@@ -34,7 +45,14 @@ export const config = {
     baseUrl: env.BASE_URL,
     logLevel: env.LOG_LEVEL,
     bcryptCost: env.BCRYPT_COST,
+    maxUploadMb: env.MAX_UPLOAD_MB,
+    dbPoolMax: env.DB_POOL_MAX,
     accessToken: { secret: env.ACCESS_TOKEN_SECRET, expiry: env.ACCESS_TOKEN_EXPIRY },
     refreshToken: { secret: env.REFRESH_TOKEN_SECRET, expiry: env.REFRESH_TOKEN_EXPIRY },
     downloadToken: { secret: env.DOWNLOAD_TOKEN_SECRET, expiry: env.DOWNLOAD_LINK_EXPIRY },
+    admin: adminParsed.success
+        ? { username: adminParsed.data.ADMIN_USERNAME, email: adminParsed.data.ADMIN_EMAIL, password: adminParsed.data.ADMIN_PASSWORD }
+        : null,
+    // names of the ADMIN_ variables that are missing or invalid (never their values)
+    adminProblems: adminParsed.success ? [] : [...new Set(adminParsed.error.issues.map((issue) => issue.path.join(".")))],
 } as const;

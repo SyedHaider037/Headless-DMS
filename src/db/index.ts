@@ -5,7 +5,9 @@ import { ILogger } from "../interfaces/logger.interface.js";
 
 const pool = new Pool({
     connectionString: config.databaseUrl,
-    ssl: false
+    ssl: false,
+    // each process opens at most this many connections; scale out by running more processes
+    max: config.dbPoolMax,
 });
 
 const db = drizzle(pool);
@@ -21,6 +23,11 @@ async function testConnection(logger: ILogger) {
     }
 }
 
-export { db, testConnection };
+// ends the pool so short-lived commands (migrate, seed) can exit
+async function closeDatabase() {
+    await pool.end();
+}
+
+export { db, testConnection, closeDatabase };
 
 

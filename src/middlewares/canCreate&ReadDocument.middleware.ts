@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { container } from "../container.js";
 import { sendError } from "../errors/http.js";
+import { forbidden } from "../errors/app-error.js";
 import { matchRes } from "@carbonteq/fp";
 
 const { permissionService, logger } = container;
@@ -12,7 +13,7 @@ export const canCreateReadDocument = (action : "CREATE_DOCUMENT" | "READ_DOCUMEN
         const roleId = user?.roleId;
 
         if (!roleId) {
-            return res.status(403).json({ error: "User does not have a role assigned" });
+            return sendError(res, forbidden("User does not have a role assigned"));
         }
 
         const allowed = await permissionService.canUserPerformAction(roleId, action);
@@ -20,7 +21,7 @@ export const canCreateReadDocument = (action : "CREATE_DOCUMENT" | "READ_DOCUMEN
         return matchRes(allowed, {
             Ok: (allowed) => {
                 if(!allowed) {
-                    return res.status(403).json({ error: `You are not allowed to ${action.toLowerCase()}`});
+                    return sendError(res, forbidden(`You are not allowed to ${action.toLowerCase()}`));
                 }
                 return next();
             },
