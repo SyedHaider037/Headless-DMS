@@ -22,9 +22,9 @@ export const RegisterUser = async (req: Request, res: Response ) => {
         return res.status(400).json({ error: "Validation failed", details: parsed.error.issues});
     }
 
-    const {username, email, password, role} = parsed.data;
+    const {username, email, password} = parsed.data;
 
-    const createdUser = await userService.register({username, email, password, role});
+    const createdUser = await userService.register({username, email, password});
         
     return matchRes(createdUser, {
         Ok: (user) =>  res.status(201).json({ user, message: "User registered successfully"}),

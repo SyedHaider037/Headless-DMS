@@ -7,7 +7,7 @@ export class UserService {
     constructor(private readonly repo: IUserRepository){}
 
     async register(data: RegisterUserDTO): Promise<Result<any, string>> {
-        const { username, email, password, role } = data;
+        const { username, email, password } = data;
 
         return Result.Ok({email, username})
             .flatMap( async() => {
@@ -21,7 +21,7 @@ export class UserService {
                 return Result.Ok(hashedPassword);
             })
             .flatMap( async(hashedPassword) => {
-                const roleRecord = await this.repo.findRoleByName(role);
+                const roleRecord = await this.repo.findRoleByName("USER");
                 return roleRecord.map((roleRecord) => ({hashedPassword, roleRecord}));
             })
             .flatMap( async({hashedPassword, roleRecord}) => await this.repo.createUser({
