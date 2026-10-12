@@ -27,7 +27,7 @@ export const RegisterUser = async (req: Request, res: Response ) => {
     const createdUser = await userService.register({username, email, password, role});
         
     return matchRes(createdUser, {
-        Ok: () =>  res.status(201).json({ user : createdUser , message: "User registered successfully"}),
+        Ok: (user) =>  res.status(201).json({ user, message: "User registered successfully"}),
         Err: (err) => {
             console.error("Registration Error:", err);
             return res.status(500).json({ error: "Internal server error" });
@@ -83,7 +83,7 @@ export const logoutUser = async(req: Request, res: Response) => {
                 .status(200)
                 .clearCookie("accessToken", options)
                 .clearCookie("refreshToken", options)
-                .json({ LogOutUser: user ,message :"User logged out successfully"}),
+                .json({ message :"User logged out successfully"}),
         Err:(err) => {
             console.error("Logout Error:", err);
             return res.status(500).json({ error: "Internal server error" });

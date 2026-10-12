@@ -36,7 +36,7 @@ export class UserRepository implements IUserRepository {
 
     async createUser(data: { username: string; email: string; password: string; roleId: string }): Promise<Result<any, string>> {
         try {
-            const createdUser = await db
+            const [createdUser] = await db
                 .insert(users)
                 .values({
                     ...data,

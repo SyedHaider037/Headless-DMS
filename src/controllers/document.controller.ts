@@ -8,6 +8,9 @@ import { matchRes } from "@carbonteq/fp";
 
 const documentService= new DocumentService(new DocumentRespository());
 
+// never expose the server-side file path to clients
+const toPublicDocument = ({ filePath, ...document }: any) => document;
+
 export const uploadDocument  = async ( req: Request, res: Response) => {
 
     const user = req.user; 
@@ -26,7 +29,7 @@ export const uploadDocument  = async ( req: Request, res: Response) => {
     const document = await documentService.upload({title, tag, userId: user.id, filePath: relativePath, fileType: file.mimetype, description});
 
     return matchRes(document, {
-        Ok: () => res.status(201).json({ document, message: "Document uploaded successfully" }),
+        Ok: (saved) => res.status(201).json({ document: toPublicDocument(saved), message: "Document uploaded successfully" }),
         Err: (err) => res.status(500).json({ error: "Internal server error" })
     });
 }
@@ -36,7 +39,7 @@ export const getAllDocuments = async (req: Request, res: Response) => {
     const allDocuments = await documentService.getAll();
 
     return matchRes(allDocuments, {
-        Ok: () => res.status(200).json({ documents: allDocuments , message: "Documents fetched successfully" }),
+        Ok: (documents) => res.status(200).json({ documents: documents.map(toPublicDocument), message: "Documents fetched successfully" }),
         Err: (err) => res.status(500).json({ error: "Internal server error" })
     });
 }
@@ -49,7 +52,7 @@ export const getDocumentById = async(req: Request, res: Response) => {
     const document = await documentService.getById(parsedId);
 
     return matchRes(document, {
-        Ok: () => res.status(200).json({ document, message: "Document fetched successfully" }),
+        Ok: (found) => res.status(200).json({ document: toPublicDocument(found), message: "Document fetched successfully" }),
         Err: (err) => res.status(500).json({ error: "Internal server error" })
     });
 }
@@ -62,7 +65,7 @@ export const deleteDocumentById = async (req: Request, res: Response) => {
     const document = await documentService.deleteById(parsedId);
 
     return matchRes(document, {
-        Ok: () => res.status(200).json({document, message: "Document deleted successfully" }),
+        Ok: ({ deletedDocument }) => res.status(200).json({ document: { id: deletedDocument.id, title: deletedDocument.title }, message: "Document deleted successfully" }),
         Err: (err) => res.status(500).json({ error: "Internal server error" })
     });
 }
@@ -80,7 +83,7 @@ export const updateDocument = async (req: Request, res: Response) => {
     const updatedDocument = await documentService.updateById({documentId: parsedId, title, description, tag});
 
     return matchRes(updatedDocument, {
-        Ok: () => res.status(200).json({ document: updatedDocument, message: "Document updated successfully" }),
+        Ok: (updated) => res.status(200).json({ document: toPublicDocument(updated), message: "Document updated successfully" }),
         Err: (err) => res.status(500).json({error: "Internal server error"})
     });
 }
@@ -96,7 +99,7 @@ export const searchDocuments = async (req: Request, res: Response) => {
     const results = await documentService.search({title, tag, authorId});
 
     return matchRes(results, {
-        Ok: () => res.status(200).json({ documents: results, message: "Search completed successfully" }),
+        Ok: (documents) => res.status(200).json({ documents: documents.map(toPublicDocument), message: "Search completed successfully" }),
         Err: (err) => {
             console.error(err);
             return res.status(500).json({ error: "Internal server error"})
