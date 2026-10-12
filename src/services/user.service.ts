@@ -1,6 +1,6 @@
-import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken } from "../utils/jwtTokenAndBcrypt";
-import { RegisterUserDTO, LoginUserDTO } from "../dtos/user.dto";
-import { IUserRepository } from "../interfaces/user.interface";
+import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken } from "../utils/jwtTokenAndBcrypt.js";
+import { RegisterUserDTO, LoginUserDTO } from "../dtos/user.dto.js";
+import { IUserRepository } from "../interfaces/user.interface.js";
 import { Result } from "@carbonteq/fp";
 
 export class UserService {

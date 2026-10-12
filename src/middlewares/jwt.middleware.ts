@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";  
-import { users } from "../schemas/user.schema";
-import { AuthService } from "../services/auth.service";
+import { users } from "../schemas/user.schema.js";
+import { AuthService } from "../services/auth.service.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
 

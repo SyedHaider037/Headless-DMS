@@ -1,4 +1,4 @@
-import { seedRoleAndPermission } from "./seedRolesandPermissions";
+import { seedRoleAndPermission } from "./seedRolesandPermissions.js";
 
 seedRoleAndPermission()
     .then((result) => {

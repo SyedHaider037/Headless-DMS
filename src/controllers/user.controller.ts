@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { registerSchema, loginSchema } from "../validation/user.validation";
-import { UserService } from "../services/user.service";
-import { UserRepository } from "../repositories/user.repository";
+import { registerSchema, loginSchema } from "../validation/user.validation.js";
+import { UserService } from "../services/user.service.js";
+import { UserRepository } from "../repositories/user.repository.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
 

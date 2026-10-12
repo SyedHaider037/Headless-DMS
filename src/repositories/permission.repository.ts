@@ -1,10 +1,10 @@
-import { db } from "../db";
-import { documents } from "../schemas/document.schema";
-import { roles } from "../schemas/role.schema";
-import { rolePermissions } from "../schemas/rolePermission.schema";
-import { permissions } from "../schemas/permission.schema";
+import { db } from "../db/index.js";
+import { documents } from "../schemas/document.schema.js";
+import { roles } from "../schemas/role.schema.js";
+import { rolePermissions } from "../schemas/rolePermission.schema.js";
+import { permissions } from "../schemas/permission.schema.js";
 import { eq, and } from "drizzle-orm";
-import { IPermissionRepository } from "../interfaces/permission.interface";
+import { IPermissionRepository } from "../interfaces/permission.interface.js";
 import { Result } from "@carbonteq/fp";
 
 export class PermissionRepository implements IPermissionRepository{

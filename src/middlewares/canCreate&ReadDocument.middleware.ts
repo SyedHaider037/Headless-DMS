@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { PermissionService } from "../services/permission.service";
-import { PermissionRepository } from "../repositories/permission.repository";
+import { PermissionService } from "../services/permission.service.js";
+import { PermissionRepository } from "../repositories/permission.repository.js";
 import { matchRes } from "@carbonteq/fp";
 
 const permissionService = new PermissionService(new PermissionRepository());

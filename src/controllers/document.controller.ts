@@ -1,9 +1,9 @@
 import { Request, Response,  } from "express";
-import { createDocumentSchema, updateDocumentSchema, documentSearchSchema} from "../validation/document.validation";   
-import { DocumentService } from "../services/document.service";
+import { createDocumentSchema, updateDocumentSchema, documentSearchSchema} from "../validation/document.validation.js";   
+import { DocumentService } from "../services/document.service.js";
 import fs from "fs";
 import path from "path";
-import { DocumentRespository } from "../repositories/document.repository";
+import { DocumentRespository } from "../repositories/document.repository.js";
 import { matchRes } from "@carbonteq/fp";
 
 const documentService= new DocumentService(new DocumentRespository());

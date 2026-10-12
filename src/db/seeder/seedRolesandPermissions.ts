@@ -1,7 +1,7 @@
-import { db } from "../index";
-import { roles } from "../../schemas/role.schema";
-import { permissions } from "../../schemas/permission.schema";  
-import { rolePermissions } from "../../schemas/rolePermission.schema";
+import { db } from "../index.js";
+import { roles } from "../../schemas/role.schema.js";
+import { permissions } from "../../schemas/permission.schema.js";  
+import { rolePermissions } from "../../schemas/rolePermission.schema.js";
 import { eq } from "drizzle-orm";
 
 const roleData = [

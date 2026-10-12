@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "drizzle:generate": "drizzle-kit generate",
+    "drizzle:generate": "tsx node_modules/drizzle-kit/bin.cjs generate",
     "drizzle:migrate": "drizzle-kit migrate",
     "seed": "tsx src/db/seeder/seederRun.ts"
   },

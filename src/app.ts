@@ -18,8 +18,8 @@ app.get("/", (req, res) => {
     res.send("Hello to this dms project");
 });
 
-import userRouter from "./routes/user.route"
-import documentRouter from './routes/document.route'
+import userRouter from "./routes/user.route.js"
+import documentRouter from './routes/document.route.js'
 
 app.use('/api/v1/user', userRouter)
 app.use('/api/v1/document', documentRouter)

@@ -1,8 +1,8 @@
-import { db } from "../db/index";
-import { users } from "../schemas/user.schema";
-import { roles } from "../schemas/role.schema";
+import { db } from "../db/index.js";
+import { users } from "../schemas/user.schema.js";
+import { roles } from "../schemas/role.schema.js";
 import { eq, or, and } from "drizzle-orm";
-import { IUserRepository } from "../interfaces/user.interface" 
+import { IUserRepository } from "../interfaces/user.interface.js" 
 import { Result } from "@carbonteq/fp";
 
 export class UserRepository implements IUserRepository {

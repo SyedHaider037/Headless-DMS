@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import "./db/index.ts";
-import {app}  from "./app"
+import "./db/index.js";
+import {app}  from "./app.js"
 
 const PORT = process.env.PORT 
 app.listen(PORT, () => {

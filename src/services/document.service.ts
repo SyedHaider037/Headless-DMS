@@ -1,8 +1,8 @@
 import path  from "path";
 import jwt from "jsonwebtoken";
 import fs from "fs";
-import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto";
-import { IDocumentRepository } from "../interfaces/document.interface";
+import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto.js";
+import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 
 export class DocumentService {

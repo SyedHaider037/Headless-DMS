@@ -1,4 +1,4 @@
-import { UserRepository } from "../repositories/user.repository";
+import { UserRepository } from "../repositories/user.repository.js";
 import { Result } from "@carbonteq/fp";
 
 const repo = new UserRepository();

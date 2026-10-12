@@ -1,7 +1,7 @@
-import { db } from "../db"
-import { documents } from "../schemas/document.schema";
+import { db } from "../db/index.js"
+import { documents } from "../schemas/document.schema.js";
 import { eq, ilike, or } from "drizzle-orm";
-import { IDocumentRepository } from "../interfaces/document.interface";
+import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 
 export class DocumentRespository implements IDocumentRepository {

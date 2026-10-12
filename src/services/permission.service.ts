@@ -1,4 +1,4 @@
-import { IPermissionRepository } from "../interfaces/permission.interface";
+import { IPermissionRepository } from "../interfaces/permission.interface.js";
 import { Result } from "@carbonteq/fp";
 
 export class PermissionService{
