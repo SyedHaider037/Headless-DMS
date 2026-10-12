@@ -104,13 +104,13 @@ export const refreshToken = async (req: Request, res: Response) => {
         decoded = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET!) as { id : string};
     } catch (error: any) {
         if (error.name === "TokenExpiredError") {
-            return res.status(403).json({ error: "Invalid or expired refresh token" });
+            return res.status(401).json({ error: "Refresh token expired" });
         }
-        return res.status(500).json({ error: "Internal server error" });   
+        return res.status(401).json({ error: "Invalid refresh token" });   
     }
 
     if (!decoded?.id) {
-        return res.status(400).json({ error: "Invalid token payload" });
+        return res.status(401).json({ error: "Invalid refresh token payload" });
     }
         
     const result = await userService.refreshToken(decoded.id, oldRefreshToken);

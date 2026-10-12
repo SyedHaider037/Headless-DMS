@@ -30,22 +30,22 @@ export const verifyAuthToken = async (req: Request, res: Response, next: NextFun
         decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!) as MyToken;
     } catch (error: any) {
         if (error.name === "TokenExpiredError") {
-            return res.status(403).json({ error: "Token Expired error" });      
+            return res.status(401).json({ error: "Access token expired" });      
         }
-        return res.status(500).json({ error: "Invalid Token error" });   
+        return res.status(401).json({ error: "Invalid access token" });   
     }
 
     if (!decoded.id) {
-        return res.status(400).json({ error: "Invalid token payload" });
+        return res.status(401).json({ error: "Invalid access token payload" });
     }
 
     const user = await AuthService.verifyToken(decoded.id);
 
-    return matchRes(user,{
+    return matchRes<any, string, void>(user,{
         Ok: (decodedUser) => {
             req.user = decodedUser;
             return next();
         },
-        Err: (error) => res.status(401).json({error})
+        Err: () => res.status(401).json({ error: "User not found for this token" })
     });
 };
