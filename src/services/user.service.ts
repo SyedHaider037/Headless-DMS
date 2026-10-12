@@ -1,8 +1,9 @@
-import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken } from "../utils/jwtTokenAndBcrypt.js";
 import { RegisterUserDTO, LoginUserDTO } from "../dtos/user.dto.js";
 import { IUserRepository } from "../interfaces/user.interface.js";
 import { Result } from "@carbonteq/fp";
 import { ILogger } from "../interfaces/logger.interface.js";
+import { ITokenService } from "../interfaces/token.interface.js";
+import { IPasswordHasher } from "../interfaces/password-hasher.interface.js";
 
 import { AppError, conflict, internal, unauthorized, validation } from "../errors/app-error.js";
 import { AuthenticatedUser, User, UserSummary } from "../entities/user.entity.js";
@@ -11,7 +12,12 @@ import { ROLE_USER } from "../entities/role.entity.js";
 const PASSWORD_MIN = 8;
 
 export class UserService {
-    constructor(private readonly repo: IUserRepository, private readonly logger: ILogger){}
+    constructor(
+        private readonly repo: IUserRepository,
+        private readonly tokens: ITokenService,
+        private readonly hasher: IPasswordHasher,
+        private readonly logger: ILogger,
+    ){}
 
     async register(data: RegisterUserDTO): Promise<Result<UserSummary, AppError>> {
         const { username, email, password } = data;
@@ -27,7 +33,7 @@ export class UserService {
                 return userExist.unwrapErr().kind === "NotFound" ? Result.Ok(password) : Result.Err(userExist.unwrapErr());
             })
             .flatMap( async() => {
-                const hashedPassword = await hashPassword(password);
+                const hashedPassword = await this.hasher.hash(password);
                 return Result.Ok(hashedPassword);
             })
             .flatMap( async(hashedPassword) => {
@@ -60,17 +66,17 @@ export class UserService {
                 return found.mapErr((err) => err.kind === "NotFound" ? unauthorized("Invalid email or password") : err);
             })
             .flatMap( async(user) => {
-                const isPasswordValid = await verifyPassword(password, user.passwordHash);
+                const isPasswordValid = await this.hasher.compare(password, user.passwordHash);
                 return isPasswordValid ? Result.Ok(user) : Result.Err(unauthorized("Invalid email or password"));
             })
             .flatMap( async(user) => {
-                const accessToken = generateAccessToken({
+                const accessToken = this.tokens.createAccessToken({
                     id: user.id,
                     username: user.username,
                     email: user.email,
                     role: user.roleId
                 });
-                const refreshToken = generateRefreshToken({ id: user.id });
+                const refreshToken = this.tokens.createRefreshToken(user.id);
 
                 const withToken = user.assignRefreshToken(refreshToken);
                 if (withToken.isErr()) return Result.Err(withToken.unwrapErr());
@@ -98,21 +104,21 @@ export class UserService {
             .toPromise();
     };
 
-    async refreshToken(userId: string, oldRefreshToken: string): Promise<Result<{ accessToken: string, refreshToken: string }, AppError>> {
+    async refreshToken(oldRefreshToken: string): Promise<Result<{ accessToken: string, refreshToken: string }, AppError>> {
 
-        return Result.Ok({userId, oldRefreshToken})
-            .flatMap(async() => {
+        return this.tokens.verifyRefreshToken(oldRefreshToken)
+            .flatMap(async({ userId }) => {
                 const found = await this.repo.findByIdAndToken(userId, oldRefreshToken);
                 return found.mapErr((err) => err.kind === "NotFound" ? unauthorized("Invalid refresh token") : err);
             })
             .flatMap(async(user) => {
-                const newAccessToken = generateAccessToken({
+                const newAccessToken = this.tokens.createAccessToken({
                     id: user.id,
                     username: user.username,
                     email: user.email,
                     role: user.roleId,
                 })
-                const newRefreshToken = generateRefreshToken({ id: user.id });
+                const newRefreshToken = this.tokens.createRefreshToken(user.id);
 
                 const withToken = user.assignRefreshToken(newRefreshToken);
                 if (withToken.isErr()) return Result.Err(withToken.unwrapErr());
@@ -120,7 +126,7 @@ export class UserService {
                 return updated.map(() => ({accessToken: newAccessToken, refreshToken: newRefreshToken}));
             })
             .mapErr((err) => {
-                this.logger.warn("Token refresh failed", { userId, error: err.message });
+                this.logger.warn("Token refresh failed", { error: err.message });
                 return err;
             })
             .toPromise();

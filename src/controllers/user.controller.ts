@@ -5,7 +5,6 @@ import { sendError } from "../errors/http.js";
 import { unauthorized } from "../errors/app-error.js";
 import { parseInput } from "../validation/parse.js";
 import { matchRes } from "@carbonteq/fp";
-import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 
 const options = {
@@ -88,27 +87,11 @@ export const logoutUser = async(req: Request, res: Response) => {
 
 export const refreshToken = async (req: Request, res: Response) => {
     
-    const oldRefreshToken = req.cookies.refreshToken;
+    const oldRefreshToken = req.cookies?.refreshToken;
 
-    if (!oldRefreshToken) {
-        return res.status(401).json({ error: "No refresh token provided" });
-    } 
+    if (!oldRefreshToken) return sendError(res, unauthorized("No refresh token provided"));
 
-    let decoded;
-    try {
-        decoded = jwt.verify(oldRefreshToken, config.refreshToken.secret) as { id : string};
-    } catch (error: any) {
-        if (error.name === "TokenExpiredError") {
-            return res.status(401).json({ error: "Refresh token expired" });
-        }
-        return res.status(401).json({ error: "Invalid refresh token" });   
-    }
-
-    if (!decoded?.id) {
-        return res.status(401).json({ error: "Invalid refresh token payload" });
-    }
-        
-    const result = await userService.refreshToken(decoded.id, oldRefreshToken);
+    const result = await userService.refreshToken(oldRefreshToken);
 
     return matchRes(result,{
         Ok: ({accessToken, refreshToken}) =>  

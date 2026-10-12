@@ -1,18 +1,18 @@
 import path  from "path";
-import jwt, { SignOptions } from "jsonwebtoken";
 import fs from "fs";
 import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto.js";
 import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 import { config } from "../config.js";
+import { ITokenService } from "../interfaces/token.interface.js";
 import { ILogger } from "../interfaces/logger.interface.js";
 
-import { AppError, notFound, unauthorized } from "../errors/app-error.js";
+import { AppError, notFound } from "../errors/app-error.js";
 import { Document, DocumentSort } from "../entities/document.entity.js";
 import { PaginatedCollection, PaginationOptions } from "../entities/pagination.entity.js";
 
 export class DocumentService {
-    constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
+    constructor(private readonly repo: IDocumentRepository, private readonly tokens: ITokenService, private readonly logger: ILogger) {}
 
     async upload(data: CreateDocumentDTO) : Promise<Result<Document, AppError>> {
         return Result.Ok(data)
@@ -113,11 +113,7 @@ export class DocumentService {
         return Result.Ok(documentId)
             .flatMap(async() => await this.repo.findById(documentId))
             .flatMap(() => {
-                const downloadToken = jwt.sign(
-                    { documentId: documentId },
-                    config.downloadToken.secret,
-                    { expiresIn: config.downloadToken.expiry as SignOptions["expiresIn"] }
-                );
+                const downloadToken = this.tokens.createDownloadToken(documentId);
                 const link = `${config.baseUrl}/api/v1/document/download/${downloadToken}`;
                 return Result.Ok(link);
             })
@@ -130,17 +126,8 @@ export class DocumentService {
 
     async download(downloadToken: string): Promise<Result<{ fileName: string, filePath: string }, AppError>> {
 
-        let decoded;
-        try {
-            decoded = jwt.verify(downloadToken, config.downloadToken.secret) as { documentId: string };
-        } catch (error: any) {
-            const message = error.name === "TokenExpiredError" ? "Download token expired" : "Invalid download token";
-            this.logger.warn("Download token rejected", { reason: message });
-            return Result.Err(unauthorized(message));
-        }
-
-        return Result.Ok(decoded.documentId)
-            .flatMap(async(documentId) => await this.repo.findById(documentId))
+        return this.tokens.verifyDownloadToken(downloadToken)
+            .flatMap(async({ documentId }) => await this.repo.findById(documentId))
             .flatMap((document) => {
                 const filePath = path.join("public", document.filePath);
                 const fileName = `${document.title}${path.extname(filePath)}`;
