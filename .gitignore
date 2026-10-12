@@ -5,9 +5,6 @@ node_modules/
 dist/
 build/
 
-# Drizzle (if you don’t want to commit migrations)
-drizzle/
-
 # Public uploads (ignore only generated files)
 public/
 

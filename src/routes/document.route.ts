@@ -1,8 +1,8 @@
 import express from "express";
-import { verifyAuthToken } from "../middlewares/jwt.middleware";
-import { upload } from "../middlewares/multer.middleware";
-import { canCreateReadDocument } from "../middlewares/canCreate&ReadDocument.middleware";
-import { canChangeDocument } from "../middlewares/canChangeDocument.middleware";
+import { verifyAuthToken } from "../middlewares/jwt.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
+import { canCreateReadDocument } from "../middlewares/canCreate&ReadDocument.middleware.js";
+import { canChangeDocument } from "../middlewares/canChangeDocument.middleware.js";
 import { 
     uploadDocument,
     getAllDocuments,
@@ -12,7 +12,7 @@ import {
     searchDocuments,
     generateDownloadLink,
     downloadDocument
-} from "../controllers/document.controller";
+} from "../controllers/document.controller.js";
 
 const router = express.Router();
 

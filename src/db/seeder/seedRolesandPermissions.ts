@@ -1,8 +1,11 @@
-import { db } from "../index";
-import { roles } from "../../schemas/role.schema";
-import { permissions } from "../../schemas/permission.schema";  
-import { rolePermissions } from "../../schemas/rolePermission.schema";
+import { db } from "../index.js";
+import { roles } from "../../schemas/role.schema.js";
+import { permissions } from "../../schemas/permission.schema.js";  
+import { rolePermissions } from "../../schemas/rolePermission.schema.js";
 import { eq } from "drizzle-orm";
+import { container } from "../../container.js";
+
+const { logger } = container;
 
 const roleData = [
     { name: "ADMIN" },
@@ -47,7 +50,7 @@ export const seedRoleAndPermission = async () => {
         })
     );
 
-    console.log("Roles seeded:", insertedRoles);
+    logger.info("Roles seeded", { count: insertedRoles.length });
 
     const insertedPermissions = await Promise.all(
         permissionData.map(async (perm) => {
@@ -58,7 +61,7 @@ export const seedRoleAndPermission = async () => {
         })
     );
 
-    console.log("Permissions seeded:", insertedPermissions);
+    logger.info("Permissions seeded", { count: insertedPermissions.length });
 
     for (const role of insertedRoles) {
         const allowedActions = rolePermissionMap[role.name as keyof typeof rolePermissionMap] || [];
@@ -74,5 +77,5 @@ export const seedRoleAndPermission = async () => {
         }
     }
 
-    console.log("Roles and Permissions seeded successfully");
+    logger.info("Roles and permissions seeded successfully");
 };

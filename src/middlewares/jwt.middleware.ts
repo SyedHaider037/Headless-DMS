@@ -1,16 +1,19 @@
-import jwt from "jsonwebtoken";
 import { NextFunction, Request, Response } from "express";  
-import { db } from "../db/index";
-import { users } from "../schemas/user.schema";
-import { eq } from "drizzle-orm";      
+import { AuthenticatedUser } from "../entities/user.entity.js";
+import { AppError } from "../errors/app-error.js";
+import { container } from "../container.js";
+import { sendError } from "../errors/http.js";
+import { matchRes } from "@carbonteq/fp";
+import jwt from "jsonwebtoken";
+import { config } from "../config.js";
 
 declare global {
     namespace Express {
         interface Request {
-            user?: typeof users.$inferSelect; 
+            user?: AuthenticatedUser; 
         }
     }
-}       
+}     
 
 type MyToken = {
     id: string;
@@ -24,30 +27,28 @@ export const verifyAuthToken = async (req: Request, res: Response, next: NextFun
     if (!token) {
         return res.status(401).json({ error: "No token provided" });
     }
-
+    
     let decoded;
     try {
-        decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!) as MyToken;
+        decoded = jwt.verify(token, config.accessToken.secret) as MyToken;
     } catch (error: any) {
         if (error.name === "TokenExpiredError") {
-            return res.status(401).json({ error: "Token expired" });
+            return res.status(401).json({ error: "Access token expired" });      
         }
-        return res.status(403).json({ error: "Invalid token" });
+        return res.status(401).json({ error: "Invalid access token" });   
     }
 
-    if (!decoded?.id) {
-        return res.status(403).json({ error: "Invalid token payload" });
+    if (!decoded.id) {
+        return res.status(401).json({ error: "Invalid access token payload" });
     }
 
-    const [user]= await db
-        .select()
-        .from(users)
-        .where(eq(users.id, decoded.id));
-    
-    if (!user) {
-        return res.status(404).json({ error: "User not found" });
-    }   
+    const user = await container.authService.verifyToken(decoded.id);
 
-    req.user = user;
-    next(); 
-}
+    return matchRes<AuthenticatedUser, AppError, void>(user,{
+        Ok: (decodedUser) => {
+            req.user = decodedUser;
+            return next();
+        },
+        Err: (error) => sendError(res, error)
+    });
+};
