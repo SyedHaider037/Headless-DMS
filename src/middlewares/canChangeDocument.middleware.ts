@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { container } from "../container.js";
+import { sendError } from "../errors/http.js";
 import { matchRes } from "@carbonteq/fp";
 
 const { permissionService, logger } = container;
@@ -34,7 +35,7 @@ export const canChangeDocument = (action: "UPDATE_DOCUMENT" | "DELETE_DOCUMENT")
             },
             Err: (err) => {
                 logger.error("Permission check failed", { action, error: err.message });
-                res.status(500).json({error: "Internal server error"});
+                return sendError(res, err);
             }
         })        
     }

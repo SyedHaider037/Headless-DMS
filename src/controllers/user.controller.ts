@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { registerSchema, loginSchema } from "../validation/user.validation.js";
 import { container } from "../container.js";
+import { sendError } from "../errors/http.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
@@ -30,7 +31,7 @@ export const RegisterUser = async (req: Request, res: Response ) => {
         Ok: (user) =>  res.status(201).json({ user, message: "User registered successfully"}),
         Err: (err) => {
             logger.error("Registration failed", { error: err.message });
-            return res.status(500).json({ error: "Internal server error" });
+            return sendError(res, err);
         }
     })
 }
@@ -64,7 +65,7 @@ export const loginUser = async (req: Request, res: Response) => {
             },
             Err: (err) => {
                 logger.error("Login failed", { error: err.message });
-                return res.status(500).json({ error: "Internal server error" });
+                return sendError(res, err);
             }    
         })
 }
@@ -86,7 +87,7 @@ export const logoutUser = async(req: Request, res: Response) => {
                 .json({ message :"User logged out successfully"}),
         Err:(err) => {
             logger.error("Logout failed", { error: err.message });
-            return res.status(500).json({ error: "Internal server error" });
+            return sendError(res, err);
         }
     }) 
 }
@@ -127,7 +128,7 @@ export const refreshToken = async (req: Request, res: Response) => {
             }),
         Err: (err) => {
             logger.error("Token refresh failed", { error: err.message });
-            return res.status(500).json({ error: "Internal server error" });
+            return sendError(res, err);
         }
     });
 }

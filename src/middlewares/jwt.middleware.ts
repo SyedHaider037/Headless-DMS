@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { users } from "../schemas/user.schema.js";
 import { AppError } from "../errors/app-error.js";
 import { container } from "../container.js";
+import { sendError } from "../errors/http.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
@@ -48,6 +49,6 @@ export const verifyAuthToken = async (req: Request, res: Response, next: NextFun
             req.user = decodedUser;
             return next();
         },
-        Err: () => res.status(401).json({ error: "User not found for this token" })
+        Err: (error) => sendError(res, error)
     });
 };

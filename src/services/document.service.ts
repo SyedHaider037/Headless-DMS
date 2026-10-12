@@ -34,9 +34,6 @@ export class DocumentService {
 
         return Result.Ok(null)
             .flatMap(async() => await this.repo.findAll())
-            .flatMap((docs) => docs.length > 0
-                ? Result.Ok(docs)
-                : Result.Err(notFound("No documents found")))
             .mapErr((err) => {
                 this.logger.error("Fetching documents failed", { error: err.message });
                 return err;
@@ -97,9 +94,6 @@ export class DocumentService {
 
         return Result.Ok(data)
             .flatMap(async (data) => await this.repo.search(data.title, data.tag, data.authorId))
-            .flatMap((results) => results.length > 0
-                ? Result.Ok(results)
-                : Result.Err(notFound("No documents match the search")))
             .mapErr((err) => {
                 this.logger.error("Document search failed", { error: err.message });
                 return err;

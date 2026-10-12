@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { container } from "../container.js";
+import { sendError } from "../errors/http.js";
 import { matchRes } from "@carbonteq/fp";
 
 const { permissionService, logger } = container;
@@ -25,7 +26,7 @@ export const canCreateReadDocument = (action : "CREATE_DOCUMENT" | "READ_DOCUMEN
             },
             Err: (err) =>{
                 logger.error("Permission check failed", { action, error: err.message });
-                return res.status(500).json({ error: "Internal server error" });
+                return sendError(res, err);
             }
         });    
     }
