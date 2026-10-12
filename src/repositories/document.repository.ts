@@ -5,11 +5,11 @@ import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal, notFound } from "../errors/app-error.js";
-import { DEFAULT_DOCUMENT_SORT, Document, DocumentChanges, DocumentFilters, DocumentSort, NewDocument } from "../entities/document.entity.js";
+import { DEFAULT_DOCUMENT_SORT, DocumentProps, DocumentChanges, DocumentFilters, DocumentSort, NewDocument } from "../entities/document.entity.js";
 import { buildDocumentConditions, buildDocumentOrder } from "./document.query.js";
 import { PaginatedCollection, PaginationOptions, toPaginatedCollection } from "../entities/pagination.entity.js";
 export class DocumentRepository implements IDocumentRepository {
-    async save(data: NewDocument) :Promise<Result<Document, AppError>> {
+    async save(data: NewDocument) :Promise<Result<DocumentProps, AppError>> {
         try {
             const [document] = await db.insert(documents).values({
                 ...data,
@@ -23,7 +23,7 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async findAll({ page, limit }: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
+    async findAll({ page, limit }: PaginationOptions): Promise<Result<PaginatedCollection<DocumentProps>, AppError>> {
         try {
             const items = await db
                 .select()
@@ -38,7 +38,7 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async findById(documentId: string): Promise<Result<Document, AppError>> {
+    async findById(documentId: string): Promise<Result<DocumentProps, AppError>> {
         try {
             const [document] = await db
                 .select()
@@ -51,7 +51,7 @@ export class DocumentRepository implements IDocumentRepository {
         }    
     }
 
-    async delete(documentId:string): Promise<Result<Document, AppError>> {
+    async delete(documentId:string): Promise<Result<DocumentProps, AppError>> {
         try {
             const [deletedDoc] = await db
                 .delete(documents)
@@ -63,7 +63,7 @@ export class DocumentRepository implements IDocumentRepository {
         } 
     }
 
-    async update(id: string, data: DocumentChanges): Promise<Result<Document, AppError>> {
+    async update(id: string, data: DocumentChanges): Promise<Result<DocumentProps, AppError>> {
         try {
             const [updated] = await db.update(documents)
                 .set({ ...data, updatedAt: new Date() })
@@ -75,7 +75,7 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
     
-    async search(filters: DocumentFilters, { page, limit }: PaginationOptions, sort: DocumentSort = DEFAULT_DOCUMENT_SORT): Promise<Result<PaginatedCollection<Document>, AppError>> {
+    async search(filters: DocumentFilters, { page, limit }: PaginationOptions, sort: DocumentSort = DEFAULT_DOCUMENT_SORT): Promise<Result<PaginatedCollection<DocumentProps>, AppError>> {
         try {
             const where = buildDocumentConditions(filters);
             const items = await db

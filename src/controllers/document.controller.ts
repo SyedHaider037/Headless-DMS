@@ -3,7 +3,7 @@ import { createDocumentSchema, updateDocumentSchema, listDocumentsQuerySchema, s
 import fs from "fs";
 import path from "path";
 import { container } from "../container.js";
-import { Document, PublicDocument } from "../entities/document.entity.js";
+import { DocumentProps, PublicDocument } from "../entities/document.entity.js";
 import { PaginatedCollection } from "../entities/pagination.entity.js";
 import { sendError } from "../errors/http.js";
 import { validation } from "../errors/app-error.js";
@@ -12,9 +12,9 @@ import { matchRes } from "@carbonteq/fp";
 const { documentService, logger } = container;
 
 // never expose the server-side file path to clients
-const toPublicDocument = ({ filePath, ...document }: Document): PublicDocument => document;
+const toPublicDocument = ({ filePath, ...document }: DocumentProps): PublicDocument => document;
 
-const toPublicPage = (page: PaginatedCollection<Document>): PaginatedCollection<PublicDocument> => ({
+const toPublicPage = (page: PaginatedCollection<DocumentProps>): PaginatedCollection<PublicDocument> => ({
     ...page,
     items: page.items.map(toPublicDocument),
 });

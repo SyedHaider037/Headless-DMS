@@ -8,11 +8,11 @@ import { IPermissionRepository } from "../interfaces/permission.interface.js";
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal } from "../errors/app-error.js";
-import { Document, DocumentChanges, NewDocument } from "../entities/document.entity.js";
+import { DocumentProps, DocumentChanges, NewDocument } from "../entities/document.entity.js";
 import { Role } from "../entities/user.entity.js";
 export class PermissionRepository implements IPermissionRepository{
 
-    async findDocumentById(documentId: string): Promise<Result<Document | null, AppError>> {
+    async findDocumentById(documentId: string): Promise<Result<DocumentProps | null, AppError>> {
         try {
             const [document] = await db
                 .select()

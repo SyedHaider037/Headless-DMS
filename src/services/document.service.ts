@@ -8,12 +8,12 @@ import { config } from "../config.js";
 import { ILogger } from "../interfaces/logger.interface.js";
 
 import { AppError, notFound, unauthorized } from "../errors/app-error.js";
-import { Document, DocumentSort } from "../entities/document.entity.js";
+import { DocumentProps, DocumentSort } from "../entities/document.entity.js";
 import { PaginatedCollection, PaginationOptions } from "../entities/pagination.entity.js";
 export class DocumentService {
     constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
 
-    async upload(data: CreateDocumentDTO) : Promise<Result<Document, AppError>> {
+    async upload(data: CreateDocumentDTO) : Promise<Result<DocumentProps, AppError>> {
         const { title, tag, userId, filePath, fileType, description } = data;
 
         return Result.Ok(data)
@@ -32,7 +32,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async getAll(options: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
+    async getAll(options: PaginationOptions): Promise<Result<PaginatedCollection<DocumentProps>, AppError>> {
 
         return Result.Ok(null)
             .flatMap(async() => await this.repo.findAll(options))
@@ -44,7 +44,7 @@ export class DocumentService {
         
     }
 
-    async getById(documentId: string): Promise<Result<Document, AppError>> {
+    async getById(documentId: string): Promise<Result<DocumentProps, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
@@ -55,7 +55,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async deleteById(documentId: string): Promise<Result<{ deletedDocument: Document, filePath: string }, AppError>> {
+    async deleteById(documentId: string): Promise<Result<{ deletedDocument: DocumentProps, filePath: string }, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
@@ -79,7 +79,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async updateById(data: UpdateDocumentDTO): Promise<Result<Document, AppError>> {
+    async updateById(data: UpdateDocumentDTO): Promise<Result<DocumentProps, AppError>> {
         const { documentId, title, description, tag } = data;
 
         return Result.Ok(documentId)
@@ -92,7 +92,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async search(data: SearchDocumentsDTO, options: PaginationOptions, sort?: DocumentSort): Promise<Result<PaginatedCollection<Document>, AppError>> {
+    async search(data: SearchDocumentsDTO, options: PaginationOptions, sort?: DocumentSort): Promise<Result<PaginatedCollection<DocumentProps>, AppError>> {
 
         return Result.Ok(data)
             .flatMap(async (data) => await this.repo.search(data, options, sort))
