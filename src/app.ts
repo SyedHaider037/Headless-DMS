@@ -3,6 +3,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import { container } from "./container.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
 
 const app = express();
 
@@ -26,5 +27,7 @@ import documentRouter from './routes/document.route.js'
 
 app.use('/api/v1/user', userRouter)
 app.use('/api/v1/document', documentRouter)
+
+app.use(errorHandler);
 
 export { app };

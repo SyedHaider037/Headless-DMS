@@ -18,13 +18,21 @@ const toPublicPage = (page: PaginatedCollection<Document>): PaginatedCollection<
     items: page.items.map(toPublicDocument),
 });
 
+// a rejected upload must not leave its file on disk
+const discardUpload = async (file?: Express.Multer.File) => {
+    if (file) await fs.promises.unlink(file.path).catch(() => undefined);
+};
+
 export const uploadDocument  = async ( req: Request, res: Response) => {
 
     const user = req.user; 
     if (!user) return res.status(401).json({ error: "Unauthorized" });
     const parsed = createDocumentSchema.safeParse(req.body);
 
-    if (!parsed.success) return res.status(400).json({error: "Validation failed",details: parsed.error.issues});
+    if (!parsed.success) {
+        await discardUpload(req.file);
+        return res.status(400).json({error: "Validation failed",details: parsed.error.issues});
+    }
 
     const { title, description, tag } = parsed.data;
     const file = req.file;
@@ -37,7 +45,10 @@ export const uploadDocument  = async ( req: Request, res: Response) => {
 
     return matchRes(document, {
         Ok: (saved) => res.status(201).json({ document: toPublicDocument(saved), message: "Document uploaded successfully" }),
-        Err: (err) => sendError(res, err)
+        Err: (err) => {
+            void discardUpload(file);
+            return sendError(res, err);
+        }
     });
 }
 

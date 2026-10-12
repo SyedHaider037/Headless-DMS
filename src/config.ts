@@ -14,6 +14,7 @@ const envSchema = z.object({
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     DOWNLOAD_LINK_EXPIRY: z.string().min(1).default("10m"),
     BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(10),
+    MAX_UPLOAD_MB: z.coerce.number().positive().default(5),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -34,6 +35,7 @@ export const config = {
     baseUrl: env.BASE_URL,
     logLevel: env.LOG_LEVEL,
     bcryptCost: env.BCRYPT_COST,
+    maxUploadMb: env.MAX_UPLOAD_MB,
     accessToken: { secret: env.ACCESS_TOKEN_SECRET, expiry: env.ACCESS_TOKEN_EXPIRY },
     refreshToken: { secret: env.REFRESH_TOKEN_SECRET, expiry: env.REFRESH_TOKEN_EXPIRY },
     downloadToken: { secret: env.DOWNLOAD_TOKEN_SECRET, expiry: env.DOWNLOAD_LINK_EXPIRY },
