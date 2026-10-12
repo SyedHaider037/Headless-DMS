@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";  
 import { users } from "../schemas/user.schema.js";
-import { AuthService } from "../services/auth.service.js";
+import { container } from "../container.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
@@ -40,7 +40,7 @@ export const verifyAuthToken = async (req: Request, res: Response, next: NextFun
         return res.status(401).json({ error: "Invalid access token payload" });
     }
 
-    const user = await AuthService.verifyToken(decoded.id);
+    const user = await container.authService.verifyToken(decoded.id);
 
     return matchRes<any, string, void>(user,{
         Ok: (decodedUser) => {

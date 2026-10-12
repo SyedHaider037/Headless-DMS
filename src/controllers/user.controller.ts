@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { registerSchema, loginSchema } from "../validation/user.validation.js";
-import { UserService } from "../services/user.service.js";
-import { UserRepository } from "../repositories/user.repository.js";
+import { container } from "../container.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
@@ -13,7 +12,7 @@ const options = {
     maxAge: 5 * 24 * 60 * 60 * 1000,
 }
 
-const userService = new UserService(new UserRepository());
+const { userService } = container;
 
 export const RegisterUser = async (req: Request, res: Response ) => {
     

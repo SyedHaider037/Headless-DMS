@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { PermissionService } from "../services/permission.service.js";
-import { PermissionRepository } from "../repositories/permission.repository.js";
+import { container } from "../container.js";
 import { matchRes } from "@carbonteq/fp";
 
-const permissionService = new PermissionService(new PermissionRepository);
+const { permissionService } = container;
 
 export const canChangeDocument = (action: "UPDATE_DOCUMENT" | "DELETE_DOCUMENT") => {
     return async (req: Request, res: Response, next: NextFunction) => {

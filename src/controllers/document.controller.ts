@@ -1,12 +1,11 @@
 import { Request, Response,  } from "express";
 import { createDocumentSchema, updateDocumentSchema, documentSearchSchema} from "../validation/document.validation.js";   
-import { DocumentService } from "../services/document.service.js";
 import fs from "fs";
 import path from "path";
-import { DocumentRespository } from "../repositories/document.repository.js";
+import { container } from "../container.js";
 import { matchRes } from "@carbonteq/fp";
 
-const documentService= new DocumentService(new DocumentRespository());
+const { documentService } = container;
 
 // never expose the server-side file path to clients
 const toPublicDocument = ({ filePath, ...document }: any) => document;

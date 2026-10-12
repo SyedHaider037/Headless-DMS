@@ -1,14 +1,13 @@
-import { UserRepository } from "../repositories/user.repository.js";
+import { IUserRepository } from "../interfaces/user.interface.js";
 import { Result } from "@carbonteq/fp";
 
-const repo = new UserRepository();
-
 export class AuthService {
+    constructor(private readonly repo: IUserRepository){}
 
-    static async verifyToken(userId: string): Promise<Result<any, string>> {
+    async verifyToken(userId: string): Promise<Result<any, string>> {
         return Result.Ok(userId)
             .flatMap(async(userId) => {
-                return await repo.findById(userId)}
+                return await this.repo.findById(userId)}
             ).mapErr((err) => {
                 console.error(`User not found: ${err}`);
                 return err;

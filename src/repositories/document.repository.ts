@@ -4,7 +4,7 @@ import { eq, ilike, or } from "drizzle-orm";
 import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 
-export class DocumentRespository implements IDocumentRepository {
+export class DocumentRepository implements IDocumentRepository {
     async create(data: {title: string, description?: string, tag: string ,authorId: string, filePath: string , fileType: string}) :Promise<Result<any, string>> {
         try {
             const [document] = await db.insert(documents).values({
