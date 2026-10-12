@@ -4,10 +4,11 @@ import { UserService } from "../services/user.service.js";
 import { UserRepository } from "../repositories/user.repository.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
+import { config } from "../config.js";
 
 const options = {
     httpOnly : true,
-    secure : true,
+    secure : config.isProduction,
     sameSite: 'strict' as const,
     maxAge: 5 * 24 * 60 * 60 * 1000,
 }
@@ -101,7 +102,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 
     let decoded;
     try {
-        decoded = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET!) as { id : string};
+        decoded = jwt.verify(oldRefreshToken, config.refreshToken.secret) as { id : string};
     } catch (error: any) {
         if (error.name === "TokenExpiredError") {
             return res.status(401).json({ error: "Refresh token expired" });

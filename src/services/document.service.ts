@@ -1,9 +1,10 @@
 import path  from "path";
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import fs from "fs";
 import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos/document.dto.js";
 import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
+import { config } from "../config.js";
 
 export class DocumentService {
     constructor(private readonly repo: IDocumentRepository) {}
@@ -111,10 +112,10 @@ export class DocumentService {
             .flatMap(() => {
                 const downloadToken = jwt.sign(
                     { documentId: documentId },
-                    process.env.DOWNLOAD_TOKEN_SECRET!,
-                    { expiresIn: "10m" }
+                    config.downloadToken.secret,
+                    { expiresIn: config.downloadToken.expiry as SignOptions["expiresIn"] }
                 );
-                const link = `${process.env.BASE_URL}/api/v1/document/download/${downloadToken}`;
+                const link = `${config.baseUrl}/api/v1/document/download/${downloadToken}`;
                 return Result.Ok(link);
             })
             .mapErr((err) => {
@@ -128,7 +129,7 @@ export class DocumentService {
 
         let decoded;
         try {
-            decoded = jwt.verify(downloadToken, process.env.DOWNLOAD_TOKEN_SECRET!) as { documentId: string };
+            decoded = jwt.verify(downloadToken, config.downloadToken.secret) as { documentId: string };
         } catch (error: any) {
             const message = error.name === "TokenExpiredError" ? "Download token expired" : "Invalid download token";
             console.error(`download failed: ${message}`);

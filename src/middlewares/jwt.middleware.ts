@@ -3,6 +3,7 @@ import { users } from "../schemas/user.schema.js";
 import { AuthService } from "../services/auth.service.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
+import { config } from "../config.js";
 
 declare global {
     namespace Express {
@@ -27,7 +28,7 @@ export const verifyAuthToken = async (req: Request, res: Response, next: NextFun
     
     let decoded;
     try {
-        decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!) as MyToken;
+        decoded = jwt.verify(token, config.accessToken.secret) as MyToken;
     } catch (error: any) {
         if (error.name === "TokenExpiredError") {
             return res.status(401).json({ error: "Access token expired" });      
