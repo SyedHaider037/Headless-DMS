@@ -26,7 +26,17 @@ export interface DocumentFilters {
     title?: string;
     tag?: string;
     authorId?: string;
+    createdFrom?: Date;
+    createdTo?: Date;
+    fileType?: string;
 }
+
+export interface DocumentSort {
+    sortBy: "createdAt" | "title";
+    sortOrder: "asc" | "desc";
+}
+
+export const DEFAULT_DOCUMENT_SORT: DocumentSort = { sortBy: "createdAt", sortOrder: "desc" };
 
 export interface DocumentChanges {
     title?: string;

@@ -1,11 +1,12 @@
 import { db } from "../db/index.js"
 import { documents } from "../schemas/document.schema.js";
-import { count, desc, eq, ilike, or } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal, notFound } from "../errors/app-error.js";
-import { Document, DocumentChanges, DocumentFilters, NewDocument } from "../entities/document.entity.js";
+import { DEFAULT_DOCUMENT_SORT, Document, DocumentChanges, DocumentFilters, DocumentSort, NewDocument } from "../entities/document.entity.js";
+import { buildDocumentConditions, buildDocumentOrder } from "./document.query.js";
 import { PaginatedCollection, PaginationOptions, toPaginatedCollection } from "../entities/pagination.entity.js";
 export class DocumentRepository implements IDocumentRepository {
     async save(data: NewDocument) :Promise<Result<Document, AppError>> {
@@ -74,25 +75,14 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
     
-    async search({ title, tag, authorId }: DocumentFilters, { page, limit }: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
+    async search(filters: DocumentFilters, { page, limit }: PaginationOptions, sort: DocumentSort = DEFAULT_DOCUMENT_SORT): Promise<Result<PaginatedCollection<Document>, AppError>> {
         try {
-            const whereConditions = [];
-            if (title) {
-                whereConditions.push(ilike(documents.title, `%${title}%`));
-            }
-            if (tag) {
-                whereConditions.push(ilike(documents.tag, `%${tag}%`));
-            } 
-            if (authorId) {
-                whereConditions.push(eq(documents.authorId, authorId));
-            }
-    
-            const where = or(...whereConditions);
+            const where = buildDocumentConditions(filters);
             const items = await db
                 .select()
                 .from(documents)
                 .where(where)
-                .orderBy(desc(documents.createdAt), desc(documents.id))
+                .orderBy(...buildDocumentOrder(sort))
                 .limit(limit)
                 .offset((page - 1) * limit);
             const [{ total }] = await db.select({ total: count() }).from(documents).where(where);

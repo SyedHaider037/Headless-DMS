@@ -8,7 +8,7 @@ import { config } from "../config.js";
 import { ILogger } from "../interfaces/logger.interface.js";
 
 import { AppError, notFound, unauthorized } from "../errors/app-error.js";
-import { Document } from "../entities/document.entity.js";
+import { Document, DocumentSort } from "../entities/document.entity.js";
 import { PaginatedCollection, PaginationOptions } from "../entities/pagination.entity.js";
 export class DocumentService {
     constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
@@ -92,10 +92,10 @@ export class DocumentService {
             .toPromise();
     }
 
-    async search(data: SearchDocumentsDTO, options: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
+    async search(data: SearchDocumentsDTO, options: PaginationOptions, sort?: DocumentSort): Promise<Result<PaginatedCollection<Document>, AppError>> {
 
         return Result.Ok(data)
-            .flatMap(async (data) => await this.repo.search({ title: data.title, tag: data.tag, authorId: data.authorId }, options))
+            .flatMap(async (data) => await this.repo.search(data, options, sort))
             .mapErr((err) => {
                 this.logger.error("Document search failed", { error: err.message });
                 return err;

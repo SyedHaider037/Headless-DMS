@@ -6,6 +6,7 @@ import { container } from "../container.js";
 import { Document, PublicDocument } from "../entities/document.entity.js";
 import { PaginatedCollection } from "../entities/pagination.entity.js";
 import { sendError } from "../errors/http.js";
+import { validation } from "../errors/app-error.js";
 import { matchRes } from "@carbonteq/fp";
 
 const { documentService, logger } = container;
@@ -56,7 +57,7 @@ export const getAllDocuments = async (req: Request, res: Response) => {
     
     const parsed = listDocumentsQuerySchema.safeParse(req.query);
     if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid pagination params", details: parsed.error.issues });
+        return sendError(res, validation(parsed.error.issues[0]?.message ?? "Invalid pagination params"));
     }
 
     const allDocuments = await documentService.getAll(parsed.data);
@@ -113,11 +114,11 @@ export const searchDocuments = async (req: Request, res: Response) => {
     
     const parsed = searchDocumentsQuerySchema.safeParse(req.query);
     if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid search params", details: parsed.error.issues });
+        return sendError(res, validation(parsed.error.issues[0]?.message ?? "Invalid search params"));
     }
     
-    const { title, tag, authorId, page, limit } = parsed.data;
-    const results = await documentService.search({title, tag, authorId}, { page, limit });
+    const { page, limit, sortBy, sortOrder, ...filters } = parsed.data;
+    const results = await documentService.search(filters, { page, limit }, { sortBy, sortOrder });
 
     return matchRes(results, {
         Ok: (documents) => res.status(200).json({ documents: toPublicPage(documents), message: "Search completed successfully" }),
