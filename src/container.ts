@@ -18,8 +18,8 @@ const userRepository = new UserRepository();
 
 export const container = {
     logger,
-    authService: new AuthService(userRepository),
-    documentService: new DocumentService(documentRepository),
-    permissionService: new PermissionService(permissionRepository),
-    userService: new UserService(userRepository),
+    authService: new AuthService(userRepository, logger),
+    documentService: new DocumentService(documentRepository, logger),
+    permissionService: new PermissionService(permissionRepository, logger),
+    userService: new UserService(userRepository, logger),
 };

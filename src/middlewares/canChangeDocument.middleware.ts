@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { container } from "../container.js";
 import { matchRes } from "@carbonteq/fp";
 
-const { permissionService } = container;
+const { permissionService, logger } = container;
 
 export const canChangeDocument = (action: "UPDATE_DOCUMENT" | "DELETE_DOCUMENT") => {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -33,7 +33,7 @@ export const canChangeDocument = (action: "UPDATE_DOCUMENT" | "DELETE_DOCUMENT")
                 return next();
             },
             Err: (err) => {
-                console.error("Permission checking failed", err);
+                logger.error("Permission check failed", { action, error: err });
                 res.status(500).json({error: "Internal server error"});
             }
         })        

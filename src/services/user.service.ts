@@ -2,9 +2,10 @@ import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken
 import { RegisterUserDTO, LoginUserDTO } from "../dtos/user.dto.js";
 import { IUserRepository } from "../interfaces/user.interface.js";
 import { Result } from "@carbonteq/fp";
+import { ILogger } from "../interfaces/logger.interface.js";
 
 export class UserService {
-    constructor(private readonly repo: IUserRepository){}
+    constructor(private readonly repo: IUserRepository, private readonly logger: ILogger){}
 
     async register(data: RegisterUserDTO): Promise<Result<any, string>> {
         const { username, email, password } = data;
@@ -31,7 +32,7 @@ export class UserService {
                 roleId: roleRecord.id
             }))
             .mapErr((err) => {
-                console.log(`User registeration failed: ${err}`);
+                this.logger.warn("User registration failed", { error: err });
                 return err;
             })
             .toPromise();
@@ -62,7 +63,7 @@ export class UserService {
                 });
             })
             .mapErr((err) => {
-                console.log(`User login failed: ${err}`);
+                this.logger.warn("User login failed", { error: err });
                 return err;
             })
             .toPromise();
@@ -73,7 +74,7 @@ export class UserService {
         return Result.Ok(userId)
             .flatMap( async() => await this.repo.updateRefreshToken(userId, null))
             .mapErr((err) => {
-                console.log(`User failed to logout ${err}`)
+                this.logger.warn("User logout failed", { userId, error: err });
                 return err;
             })
             .toPromise();
@@ -96,7 +97,7 @@ export class UserService {
                 return updated.map(() => ({accessToken: newAccessToken, refreshToken: newRefreshToken}));
             })
             .mapErr((err) => {
-                console.error(`Refresh token flow failed: ${err}`);
+                this.logger.warn("Token refresh failed", { userId, error: err });
                 return err;
             })
             .toPromise();

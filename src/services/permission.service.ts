@@ -1,8 +1,9 @@
 import { IPermissionRepository } from "../interfaces/permission.interface.js";
 import { Result } from "@carbonteq/fp";
+import { ILogger } from "../interfaces/logger.interface.js";
 
 export class PermissionService{
-    constructor(private readonly repo: IPermissionRepository){}
+    constructor(private readonly repo: IPermissionRepository, private readonly logger: ILogger){}
 
     async  canUserChangeDocument(userId: string, roleId: string, documentId: string, action: string): Promise<Result<boolean, string>>{
 
@@ -20,7 +21,7 @@ export class PermissionService{
                 return Result.Ok(false);
             })
             .mapErr((err) => {
-                console.error(`User didnot have permission to ${action} : ${err}`)
+                this.logger.error("Permission check failed", { action, error: err });
                 return err;
             })
             .toPromise();
@@ -30,7 +31,7 @@ export class PermissionService{
         return Result.Ok({roleId, action})
         .flatMap(() => this.repo.checkRolePermission(roleId, action))
         .mapErr((err) => {
-            console.error(`User didnot have permission to ${action} : ${err}`)
+            this.logger.error("Permission check failed", { action, error: err });
             return err;
         })
         .toPromise();

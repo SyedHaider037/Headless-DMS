@@ -5,9 +5,10 @@ import { CreateDocumentDTO, UpdateDocumentDTO, SearchDocumentsDTO} from "../dtos
 import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 import { config } from "../config.js";
+import { ILogger } from "../interfaces/logger.interface.js";
 
 export class DocumentService {
-    constructor(private readonly repo: IDocumentRepository) {}
+    constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
 
     async upload(data: CreateDocumentDTO) : Promise<Result<any, string>> {
         const { title, tag, userId, filePath, fileType, description } = data;
@@ -22,7 +23,7 @@ export class DocumentService {
                 fileType: d.fileType,
             }))
             .mapErr((err) => {
-                console.error(`upload failed for user${userId}: ${err}`);
+                this.logger.error("Document upload failed", { userId, error: err });
                 return err;
             })
             .toPromise();
@@ -36,7 +37,7 @@ export class DocumentService {
                 ? Result.Ok(docs)
                 : Result.Err("No documents found"))
             .mapErr((err) => {
-                console.error(`getAll failed: ${err}`);
+                this.logger.error("Fetching documents failed", { error: err });
                 return err;
             })
             .toPromise();
@@ -48,7 +49,7 @@ export class DocumentService {
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
             .mapErr((err) => {
-                console.error(`get document by id failed: ${err}`);
+                this.logger.error("Fetching document failed", { documentId, error: err });
                 return err;
             })
             .toPromise();
@@ -66,13 +67,13 @@ export class DocumentService {
                 const deletedDocument = await this.repo.delete(documentId);
                 return deletedDocument.map((deleted) => {
                     fs.unlink(filePath, (err) => {
-                        if (err) console.error("Failed to delete file", err);
+                        if (err) this.logger.error("Failed to delete file from disk", { documentId, error: err.message });
                     });
                     return { deletedDocument: deleted, filePath };
                 });
             })
             .mapErr((err) => {
-                console.error(`delete document failed: ${err}`);
+                this.logger.error("Document delete failed", { documentId, error: err });
                 return err;
             })
             .toPromise();
@@ -85,7 +86,7 @@ export class DocumentService {
             .flatMap(async () => await this.repo.findById(documentId))
             .flatMap(async () => await this.repo.update(documentId, {title, description, tag}))
             .mapErr((err) => {
-                console.error(`update document failed: ${err}`);
+                this.logger.error("Document update failed", { documentId, error: err });
                 return err;
             })
             .toPromise();
@@ -99,7 +100,7 @@ export class DocumentService {
                 ? Result.Ok(results)
                 : Result.Err("No documents match the search"))
             .mapErr((err) => {
-                console.log(`search document failed ${err}`);
+                this.logger.error("Document search failed", { error: err });
                 return err;
             })
             .toPromise();
@@ -119,7 +120,7 @@ export class DocumentService {
                 return Result.Ok(link);
             })
             .mapErr((err) => {
-                console.error(`download link generation failed: ${err}`);
+                this.logger.error("Download link generation failed", { documentId, error: err });
                 return err;
             })
             .toPromise();
@@ -132,7 +133,7 @@ export class DocumentService {
             decoded = jwt.verify(downloadToken, config.downloadToken.secret) as { documentId: string };
         } catch (error: any) {
             const message = error.name === "TokenExpiredError" ? "Download token expired" : "Invalid download token";
-            console.error(`download failed: ${message}`);
+            this.logger.warn("Download token rejected", { reason: message });
             return Result.Err(message);
         }
 
@@ -147,7 +148,7 @@ export class DocumentService {
                     : Result.Err("File not found on server");
             })
             .mapErr((err) => {
-                console.error(`download failed: ${err}`);
+                this.logger.error("Download failed", { error: err });
                 return err;
             })
             .toPromise();
