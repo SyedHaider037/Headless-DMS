@@ -21,6 +21,11 @@ async function testConnection(logger: ILogger) {
     }
 }
 
-export { db, testConnection };
+// ends the pool so short-lived commands (migrate, seed) can exit
+async function closeDatabase() {
+    await pool.end();
+}
+
+export { db, testConnection, closeDatabase };
 
 

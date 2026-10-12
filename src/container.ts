@@ -37,3 +37,5 @@ export const container = {
     permissionService: new PermissionService(permissionRepository, logger),
     userService: new UserService(userRepository, tokenService, passwordHasher, logger),
 };
+
+export type Container = typeof container;
