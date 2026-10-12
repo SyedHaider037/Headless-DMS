@@ -35,7 +35,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async createUser(data: { username: string; email: string; password: string; roleId: string }): Promise<Result<any, AppError>> {
+    async save(data: { username: string; email: string; password: string; roleId: string }): Promise<Result<any, AppError>> {
         try {
             const [createdUser] = await db
                 .insert(users)

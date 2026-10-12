@@ -15,7 +15,7 @@ export class DocumentService {
         const { title, tag, userId, filePath, fileType, description } = data;
 
         return Result.Ok(data)
-            .flatMap(async(d) => await this.repo.create({
+            .flatMap(async(d) => await this.repo.save({
                 title: d.title,
                 description: d.description,
                 tag: d.tag,

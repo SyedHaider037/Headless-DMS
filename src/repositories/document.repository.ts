@@ -6,7 +6,7 @@ import { Result } from "@carbonteq/fp";
 
 import { AppError, internal, notFound } from "../errors/app-error.js";
 export class DocumentRepository implements IDocumentRepository {
-    async create(data: {title: string, description?: string, tag: string ,authorId: string, filePath: string , fileType: string}) :Promise<Result<any, AppError>> {
+    async save(data: {title: string, description?: string, tag: string ,authorId: string, filePath: string , fileType: string}) :Promise<Result<any, AppError>> {
         try {
             const [document] = await db.insert(documents).values({
                 ...data,

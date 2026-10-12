@@ -28,7 +28,7 @@ export class UserService {
                     .mapErr((err) => err.kind === "NotFound" ? internal("Default role USER is missing; run the seeder") : err)
                     .map((roleRecord) => ({hashedPassword, roleRecord}));
             })
-            .flatMap( async({hashedPassword, roleRecord}) => await this.repo.createUser({
+            .flatMap( async({hashedPassword, roleRecord}) => await this.repo.save({
                 username,
                 email,
                 password: hashedPassword,
