@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { registerSchema, loginSchema } from "../validation/user.validation.js";
 import { container } from "../container.js";
 import { sendError } from "../errors/http.js";
+import { unauthorized } from "../errors/app-error.js";
+import { parseInput } from "../validation/parse.js";
 import { matchRes } from "@carbonteq/fp";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
@@ -17,13 +19,10 @@ const { userService, logger } = container;
 
 export const RegisterUser = async (req: Request, res: Response ) => {
     
-    const parsed = registerSchema.safeParse(req.body);
-        
-    if (!parsed.success) {
-        return res.status(400).json({ error: "Validation failed", details: parsed.error.issues});
-    }
+    const input = parseInput(registerSchema, req.body);
+    if (input.isErr()) return sendError(res, input.unwrapErr());
 
-    const {username, email, password} = parsed.data;
+    const {username, email, password} = input.unwrap();
 
     const createdUser = await userService.register({username, email, password});
         
@@ -39,13 +38,10 @@ export const RegisterUser = async (req: Request, res: Response ) => {
 
 export const loginUser = async (req: Request, res: Response) => {
     
-        const parsed = loginSchema.safeParse(req.body);
+        const input = parseInput(loginSchema, req.body);
+        if (input.isErr()) return sendError(res, input.unwrapErr());
 
-        if (!parsed.success) {
-            return res.status(400).json({ error: "Validation failed",  details: parsed.error.issues});
-        }
-
-        const { email, password } = parsed.data;
+        const { email, password } = input.unwrap();
 
         const result = await userService.login({email, password});
         
@@ -72,9 +68,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
 export const logoutUser = async(req: Request, res: Response) => {
 
-    if (!req.user) {
-        return res.status(400).json({ error: "No token provoided"});
-    }
+    if (!req.user) return sendError(res, unauthorized("Authentication required"));
         
     const user = await userService.logout(req.user.id);
     

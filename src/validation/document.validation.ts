@@ -4,15 +4,15 @@ import { uuidSchema } from "./params.validation.js";
 import { FILE_TYPE_NAMES, mimeTypeForFileType } from "./upload.validation.js";
 
 export const createDocumentSchema = z.object({
-    title: z.string().min(8, "Title should be al least 8 characters long"),
-    description: z.string().optional(),
-    tag: z.string().min(5,"Tag is required"),    
+    title: z.string("Title is required"),
+    description: z.string("Description must be text").optional(),
+    tag: z.string("Tag is required"),
 });
 
 export const updateDocumentSchema = z.object({
-    title: z.string().min(8, "Title should be al least 8 characters long").optional(),
-    description: z.string().optional(),
-    tag: z.string().min(5,"Tag is required").optional(),
+    title: z.string("Title must be text").optional(),
+    description: z.string("Description must be text").optional(),
+    tag: z.string("Tag must be text").optional(),
 });      
 
 export const listDocumentsQuerySchema = paginationSchema;

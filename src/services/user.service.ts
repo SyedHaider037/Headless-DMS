@@ -4,9 +4,11 @@ import { IUserRepository } from "../interfaces/user.interface.js";
 import { Result } from "@carbonteq/fp";
 import { ILogger } from "../interfaces/logger.interface.js";
 
-import { AppError, conflict, internal, unauthorized } from "../errors/app-error.js";
+import { AppError, conflict, internal, unauthorized, validation } from "../errors/app-error.js";
 import { AuthenticatedUser, User, UserSummary } from "../entities/user.entity.js";
 import { ROLE_USER } from "../entities/role.entity.js";
+
+const PASSWORD_MIN = 8;
 
 export class UserService {
     constructor(private readonly repo: IUserRepository, private readonly logger: ILogger){}
@@ -15,6 +17,9 @@ export class UserService {
         const { username, email, password } = data;
 
         return Result.Ok({email, username})
+            .flatMap( () => password.length >= PASSWORD_MIN
+                ? Result.Ok(password)
+                : Result.Err(validation(`Password must be at least ${PASSWORD_MIN} characters long`)))
             .flatMap( async() => {
                 const userExist = await this.repo.findByEmailOrUsername(email, username);
                 if (userExist.isOk()) return Result.Err(conflict("User with this email or username already exists"));

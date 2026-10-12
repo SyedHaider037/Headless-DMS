@@ -20,6 +20,10 @@ const storage = multer.diskStorage({
     }
 });
 
+// the path stored for a file is relative to the public folder, with forward slashes
+export const storedFilePath = (file: Express.Multer.File): string =>
+    path.relative(path.join(process.cwd(), "public"), file.path).replace(/\\/g, "/");
+
 export const upload = multer({
     storage,
     limits: { fileSize: config.maxUploadMb * 1024 * 1024, files: 1 },

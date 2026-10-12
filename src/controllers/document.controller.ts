@@ -1,12 +1,13 @@
 import { Request, Response,  } from "express";
 import { createDocumentSchema, updateDocumentSchema, listDocumentsQuerySchema, searchDocumentsQuerySchema} from "../validation/document.validation.js";   
 import fs from "fs";
-import path from "path";
 import { container } from "../container.js";
 import { Document, PublicDocument } from "../entities/document.entity.js";
 import { PaginatedCollection } from "../entities/pagination.entity.js";
 import { sendError } from "../errors/http.js";
-import { validation } from "../errors/app-error.js";
+import { unauthorized, validation } from "../errors/app-error.js";
+import { parseInput } from "../validation/parse.js";
+import { storedFilePath } from "../middlewares/multer.middleware.js";
 import { matchRes } from "@carbonteq/fp";
 
 const { documentService, logger } = container;
@@ -24,23 +25,22 @@ const discardUpload = async (file?: Express.Multer.File) => {
 
 export const uploadDocument  = async ( req: Request, res: Response) => {
 
-    const user = req.user; 
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
-    const parsed = createDocumentSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-        await discardUpload(req.file);
-        return res.status(400).json({error: "Validation failed",details: parsed.error.issues});
+    const user = req.user;
+    const file = req.file;
+    if (!user) {
+        await discardUpload(file);
+        return sendError(res, unauthorized("Authentication required"));
     }
 
-    const { title, description, tag } = parsed.data;
-    const file = req.file;
+    const input = parseInput(createDocumentSchema, req.body);
+    if (input.isErr()) {
+        await discardUpload(file);
+        return sendError(res, input.unwrapErr());
+    }
+    if (!file) return sendError(res, validation("File is required"));
 
-    if (!file) return res.status(400).json({ error: "File is required"});
-
-    const relativePath = path.relative(path.join(process.cwd(), "public"), file.path).replace(/\\/g, "/");
-
-    const document = await documentService.upload({title, tag, userId: user.id, filePath: relativePath, fileType: file.mimetype, description});
+    const { title, description, tag } = input.unwrap();
+    const document = await documentService.upload({title, tag, userId: user.id, filePath: storedFilePath(file), fileType: file.mimetype, description});
 
     return matchRes(document, {
         Ok: (saved) => res.status(201).json({ document: saved.toPublic(), message: "Document uploaded successfully" }),
@@ -53,12 +53,10 @@ export const uploadDocument  = async ( req: Request, res: Response) => {
 
 export const getAllDocuments = async (req: Request, res: Response) => {
     
-    const parsed = listDocumentsQuerySchema.safeParse(req.query);
-    if (!parsed.success) {
-        return sendError(res, validation(parsed.error.issues[0]?.message ?? "Invalid pagination params"));
-    }
+    const query = parseInput(listDocumentsQuerySchema, req.query);
+    if (query.isErr()) return sendError(res, query.unwrapErr());
 
-    const allDocuments = await documentService.getAll(parsed.data);
+    const allDocuments = await documentService.getAll(query.unwrap());
 
     return matchRes(allDocuments, {
         Ok: (documents) => res.status(200).json({ documents: toPublicPage(documents), message: "Documents fetched successfully" }),
@@ -94,11 +92,10 @@ export const updateDocument = async (req: Request, res: Response) => {
     
     const parsedId = req.params.id;
 
-    const parsed = updateDocumentSchema.safeParse(req.body);
+    const input = parseInput(updateDocumentSchema, req.body);
+    if (input.isErr()) return sendError(res, input.unwrapErr());
 
-    if (!parsed.success) return res.status(400).json({ error: "Validation failed" , details: parsed.error.issues});
-
-    const { title, description, tag } = parsed.data;
+    const { title, description, tag } = input.unwrap();
 
     const updatedDocument = await documentService.updateById({documentId: parsedId, title, description, tag});
 
@@ -110,12 +107,10 @@ export const updateDocument = async (req: Request, res: Response) => {
 
 export const searchDocuments = async (req: Request, res: Response) => {
     
-    const parsed = searchDocumentsQuerySchema.safeParse(req.query);
-    if (!parsed.success) {
-        return sendError(res, validation(parsed.error.issues[0]?.message ?? "Invalid search params"));
-    }
-    
-    const { page, limit, sortBy, sortOrder, ...filters } = parsed.data;
+    const query = parseInput(searchDocumentsQuerySchema, req.query);
+    if (query.isErr()) return sendError(res, query.unwrapErr());
+
+    const { page, limit, sortBy, sortOrder, ...filters } = query.unwrap();
     const results = await documentService.search(filters, { page, limit }, { sortBy, sortOrder });
 
     return matchRes(results, {
