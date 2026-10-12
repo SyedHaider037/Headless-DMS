@@ -9,7 +9,7 @@ import { Result } from "@carbonteq/fp";
 
 import { AppError, internal } from "../errors/app-error.js";
 import { DocumentProps, DocumentChanges, NewDocument } from "../entities/document.entity.js";
-import { Role } from "../entities/user.entity.js";
+import { RoleProps } from "../entities/role.entity.js";
 export class PermissionRepository implements IPermissionRepository{
 
     async findDocumentById(documentId: string): Promise<Result<DocumentProps | null, AppError>> {
@@ -24,7 +24,7 @@ export class PermissionRepository implements IPermissionRepository{
         }    
     }
 
-    async findRoleById(roleId :string): Promise<Result<Role | null, AppError>> {
+    async findRoleById(roleId :string): Promise<Result<RoleProps | null, AppError>> {
         try {
             const [role] = await db
                 .select()

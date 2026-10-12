@@ -6,10 +6,11 @@ import { IUserRepository } from "../interfaces/user.interface.js"
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal, notFound } from "../errors/app-error.js";
-import { AuthenticatedUser, CreatedUser, NewUser, Role, User } from "../entities/user.entity.js";
+import { AuthenticatedUser, CreatedUser, NewUser, UserProps } from "../entities/user.entity.js";
+import { RoleProps } from "../entities/role.entity.js";
 export class UserRepository implements IUserRepository {
     
-    async findByEmailOrUsername(email: string, username: string): Promise<Result<User, AppError>> {
+    async findByEmailOrUsername(email: string, username: string): Promise<Result<UserProps, AppError>> {
         try {
             const [user] = await db
                 .select()
@@ -24,7 +25,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findRoleByName(roleName: string): Promise<Result<Role, AppError>> {
+    async findRoleByName(roleName: string): Promise<Result<RoleProps, AppError>> {
         try {
             const [roleRecord] = await db
                 .select()
@@ -56,7 +57,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findByEmail(email: string): Promise<Result<User, AppError>> {
+    async findByEmail(email: string): Promise<Result<UserProps, AppError>> {
         try {
             const [user] = await db
                 .select()
@@ -68,7 +69,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async updateRefreshToken(userId: string, refreshToken: string | null): Promise<Result<User, AppError>> {
+    async updateRefreshToken(userId: string, refreshToken: string | null): Promise<Result<UserProps, AppError>> {
         try {
             const [updatedUser] = await db 
                 .update(users)
@@ -81,7 +82,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findByIdAndToken(userId: string, refreshToken: string): Promise<Result<User, AppError>> {
+    async findByIdAndToken(userId: string, refreshToken: string): Promise<Result<UserProps, AppError>> {
         try {
             const [user] = await db
                 .select()
@@ -96,7 +97,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findById(userId: string): Promise<Result<User, AppError>> {
+    async findById(userId: string): Promise<Result<UserProps, AppError>> {
         try {
             const [user] = await db
                 .select()
