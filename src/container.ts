@@ -29,6 +29,7 @@ const authService = new AuthService(userRepository, logger);
 
 export const container = {
     logger,
+    userRepository,
     tokenService,
     passwordHasher,
     authService,

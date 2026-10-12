@@ -18,6 +18,13 @@ const envSchema = z.object({
     DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
 });
 
+// the admin account is optional: without valid values the seed simply skips it
+const adminSchema = z.object({
+    ADMIN_USERNAME: z.string().min(1).default("administrator"),
+    ADMIN_EMAIL: z.email(),
+    ADMIN_PASSWORD: z.string().min(8),
+});
+
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
@@ -27,6 +34,8 @@ if (!parsed.success) {
 }
 
 const env = parsed.data;
+
+const adminParsed = adminSchema.safeParse(process.env);
 
 export const config = {
     nodeEnv: env.NODE_ENV,
@@ -41,4 +50,9 @@ export const config = {
     accessToken: { secret: env.ACCESS_TOKEN_SECRET, expiry: env.ACCESS_TOKEN_EXPIRY },
     refreshToken: { secret: env.REFRESH_TOKEN_SECRET, expiry: env.REFRESH_TOKEN_EXPIRY },
     downloadToken: { secret: env.DOWNLOAD_TOKEN_SECRET, expiry: env.DOWNLOAD_LINK_EXPIRY },
+    admin: adminParsed.success
+        ? { username: adminParsed.data.ADMIN_USERNAME, email: adminParsed.data.ADMIN_EMAIL, password: adminParsed.data.ADMIN_PASSWORD }
+        : null,
+    // names of the ADMIN_ variables that are missing or invalid (never their values)
+    adminProblems: adminParsed.success ? [] : [...new Set(adminParsed.error.issues.map((issue) => issue.path.join(".")))],
 } as const;

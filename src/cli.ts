@@ -57,6 +57,15 @@ export const createProgram = (): Command => {
             await runOnce("Seeding", async (container) => {
                 const { seedRoleAndPermission } = await import("./db/seeder/seedRolesandPermissions.js");
                 await seedRoleAndPermission();
+
+                const { seedAdminUser } = await import("./db/seeder/seedAdminUser.js");
+                const { config } = await import("./config.js");
+                const admin = await seedAdminUser(
+                    { admin: config.admin, problems: config.adminProblems },
+                    { users: container.userRepository, hasher: container.passwordHasher, logger: container.logger },
+                );
+                if (admin.isErr()) throw admin.unwrapErr();
+
                 container.logger.info("Seeding finished");
             });
         });
