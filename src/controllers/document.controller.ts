@@ -60,7 +60,6 @@ export const getDocumentById = async(req: Request, res: Response) => {
     
     const parsedId = req.params.id;
 
-    if (!parsedId) return res.status(400).json({ error: "Document ID is required" });
     const document = await documentService.getById(parsedId);
 
     return matchRes(document, {
@@ -73,7 +72,6 @@ export const deleteDocumentById = async (req: Request, res: Response) => {
 
     const parsedId = req.params.id;
 
-    if (!parsedId) return res.status(400).json({ error: "Document ID is required" });   
     const document = await documentService.deleteById(parsedId);
 
     return matchRes(document, {
@@ -122,8 +120,6 @@ export const searchDocuments = async (req: Request, res: Response) => {
 export const generateDownloadLink = async (req: Request, res: Response) => {
 
         const parsedId = req.params.id;
-
-        if (!parsedId) return res.status(400).json({ error: "Document ID is required" });
 
         const linkresult  = await documentService.downloadLink(parsedId);
 

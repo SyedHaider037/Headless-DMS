@@ -10,10 +10,6 @@ export const canChangeDocument = (action: "UPDATE_DOCUMENT" | "DELETE_DOCUMENT")
         const documentId = req.params.id;
         const user = req.user;
     
-        if (!documentId) {
-            return res.status(400).json({ error: "Document ID is required" });
-        }
-
         if (!user) {
             return res.status(401).json({ error: "Unauthorized" });
         }
