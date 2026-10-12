@@ -6,9 +6,10 @@ import { IUserRepository } from "../interfaces/user.interface.js"
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal, notFound } from "../errors/app-error.js";
+import { AuthenticatedUser, CreatedUser, NewUser, Role, User } from "../entities/user.entity.js";
 export class UserRepository implements IUserRepository {
     
-    async findByEmailOrUsername(email: string, username: string): Promise<Result<any, AppError>> {
+    async findByEmailOrUsername(email: string, username: string): Promise<Result<User, AppError>> {
         try {
             const [user] = await db
                 .select()
@@ -23,7 +24,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findRoleByName(roleName: string): Promise<Result<any, AppError>> {
+    async findRoleByName(roleName: string): Promise<Result<Role, AppError>> {
         try {
             const [roleRecord] = await db
                 .select()
@@ -35,7 +36,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async save(data: { username: string; email: string; password: string; roleId: string }): Promise<Result<any, AppError>> {
+    async save(data: NewUser): Promise<Result<CreatedUser, AppError>> {
         try {
             const [createdUser] = await db
                 .insert(users)
@@ -55,7 +56,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findByEmail(email: string): Promise<Result<any, AppError>> {
+    async findByEmail(email: string): Promise<Result<User, AppError>> {
         try {
             const [user] = await db
                 .select()
@@ -67,7 +68,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async updateRefreshToken(userId: string, refreshToken: string | null): Promise<Result<any, AppError>> {
+    async updateRefreshToken(userId: string, refreshToken: string | null): Promise<Result<User, AppError>> {
         try {
             const [updatedUser] = await db 
                 .update(users)
@@ -80,7 +81,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findByIdAndToken(userId: string, refreshToken: string): Promise<Result<any, AppError>> {
+    async findByIdAndToken(userId: string, refreshToken: string): Promise<Result<User, AppError>> {
         try {
             const [user] = await db
                 .select()
@@ -95,7 +96,7 @@ export class UserRepository implements IUserRepository {
         }
     }
 
-    async findById(userId: string): Promise<Result<any, AppError>> {
+    async findById(userId: string): Promise<Result<User, AppError>> {
         try {
             const [user] = await db
                 .select()

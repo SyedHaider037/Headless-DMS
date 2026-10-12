@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";  
-import { users } from "../schemas/user.schema.js";
+import { AuthenticatedUser } from "../entities/user.entity.js";
 import { AppError } from "../errors/app-error.js";
 import { container } from "../container.js";
 import { sendError } from "../errors/http.js";
@@ -10,7 +10,7 @@ import { config } from "../config.js";
 declare global {
     namespace Express {
         interface Request {
-            user?: typeof users.$inferSelect; 
+            user?: AuthenticatedUser; 
         }
     }
 }     
@@ -44,7 +44,7 @@ export const verifyAuthToken = async (req: Request, res: Response, next: NextFun
 
     const user = await container.authService.verifyToken(decoded.id);
 
-    return matchRes<any, AppError, void>(user,{
+    return matchRes<AuthenticatedUser, AppError, void>(user,{
         Ok: (decodedUser) => {
             req.user = decodedUser;
             return next();

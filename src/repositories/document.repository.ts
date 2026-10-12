@@ -5,8 +5,9 @@ import { IDocumentRepository } from "../interfaces/document.interface.js";
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal, notFound } from "../errors/app-error.js";
+import { Document, DocumentChanges, NewDocument } from "../entities/document.entity.js";
 export class DocumentRepository implements IDocumentRepository {
-    async save(data: {title: string, description?: string, tag: string ,authorId: string, filePath: string , fileType: string}) :Promise<Result<any, AppError>> {
+    async save(data: NewDocument) :Promise<Result<Document, AppError>> {
         try {
             const [document] = await db.insert(documents).values({
                 ...data,
@@ -20,7 +21,7 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async findAll(): Promise<Result<any[], AppError>> {
+    async findAll(): Promise<Result<Document[], AppError>> {
         try {
             const result = await db.select().from(documents);
             return result ? Result.Ok(result) : Result.Err(internal("Failed to list documents"));
@@ -29,7 +30,7 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
 
-    async findById(documentId: string): Promise<Result<any, AppError>> {
+    async findById(documentId: string): Promise<Result<Document, AppError>> {
         try {
             const [document] = await db
                 .select()
@@ -42,7 +43,7 @@ export class DocumentRepository implements IDocumentRepository {
         }    
     }
 
-    async delete(documentId:string): Promise<Result<any, AppError>> {
+    async delete(documentId:string): Promise<Result<Document, AppError>> {
         try {
             const [deletedDoc] = await db
                 .delete(documents)
@@ -54,7 +55,7 @@ export class DocumentRepository implements IDocumentRepository {
         } 
     }
 
-    async update(id: string, data: { title?: string; description?: string; tag?: string }): Promise<Result<any, AppError>> {
+    async update(id: string, data: DocumentChanges): Promise<Result<Document, AppError>> {
         try {
             const [updated] = await db.update(documents)
                 .set({ ...data, updatedAt: new Date() })
@@ -66,7 +67,7 @@ export class DocumentRepository implements IDocumentRepository {
         }
     }
     
-    async search(title?: string, tag?: string, authorId?: string): Promise<Result<any[], AppError>> {
+    async search(title?: string, tag?: string, authorId?: string): Promise<Result<Document[], AppError>> {
         try {
             const whereConditions = [];
             if (title) {

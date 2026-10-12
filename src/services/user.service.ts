@@ -5,10 +5,11 @@ import { Result } from "@carbonteq/fp";
 import { ILogger } from "../interfaces/logger.interface.js";
 
 import { AppError, conflict, internal, unauthorized } from "../errors/app-error.js";
+import { AuthenticatedUser, CreatedUser } from "../entities/user.entity.js";
 export class UserService {
     constructor(private readonly repo: IUserRepository, private readonly logger: ILogger){}
 
-    async register(data: RegisterUserDTO): Promise<Result<any, AppError>> {
+    async register(data: RegisterUserDTO): Promise<Result<CreatedUser, AppError>> {
         const { username, email, password } = data;
 
         return Result.Ok({email, username})
@@ -41,7 +42,7 @@ export class UserService {
             .toPromise();
     };
 
-    async login(data: LoginUserDTO): Promise<Result<any, AppError>> {
+    async login(data: LoginUserDTO): Promise<Result<{ userData: AuthenticatedUser, accessToken: string, refreshToken: string }, AppError>> {
         const { email, password } = data;
 
         return Result.Ok(email)
@@ -75,10 +76,13 @@ export class UserService {
             .toPromise();
     };
 
-    async logout(userId: string): Promise<Result<any, AppError>> {
+    async logout(userId: string): Promise<Result<void, AppError>> {
 
         return Result.Ok(userId)
-            .flatMap( async() => await this.repo.updateRefreshToken(userId, null))
+            .flatMap( async() => {
+                const updated = await this.repo.updateRefreshToken(userId, null);
+                return updated.map(() => undefined);
+            })
             .mapErr((err) => {
                 this.logger.warn("User logout failed", { userId, error: err.message });
                 return err;
@@ -86,7 +90,7 @@ export class UserService {
             .toPromise();
     };
 
-    async refreshToken(userId: string, oldRefreshToken: string): Promise<Result<any, AppError>> {
+    async refreshToken(userId: string, oldRefreshToken: string): Promise<Result<{ accessToken: string, refreshToken: string }, AppError>> {
 
         return Result.Ok({userId, oldRefreshToken})
             .flatMap(async() => {

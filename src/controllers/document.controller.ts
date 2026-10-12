@@ -3,13 +3,14 @@ import { createDocumentSchema, updateDocumentSchema, documentSearchSchema} from 
 import fs from "fs";
 import path from "path";
 import { container } from "../container.js";
+import { Document, PublicDocument } from "../entities/document.entity.js";
 import { sendError } from "../errors/http.js";
 import { matchRes } from "@carbonteq/fp";
 
 const { documentService, logger } = container;
 
 // never expose the server-side file path to clients
-const toPublicDocument = ({ filePath, ...document }: any) => document;
+const toPublicDocument = ({ filePath, ...document }: Document): PublicDocument => document;
 
 export const uploadDocument  = async ( req: Request, res: Response) => {
 

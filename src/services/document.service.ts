@@ -8,10 +8,11 @@ import { config } from "../config.js";
 import { ILogger } from "../interfaces/logger.interface.js";
 
 import { AppError, notFound, unauthorized } from "../errors/app-error.js";
+import { Document } from "../entities/document.entity.js";
 export class DocumentService {
     constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
 
-    async upload(data: CreateDocumentDTO) : Promise<Result<any, AppError>> {
+    async upload(data: CreateDocumentDTO) : Promise<Result<Document, AppError>> {
         const { title, tag, userId, filePath, fileType, description } = data;
 
         return Result.Ok(data)
@@ -30,7 +31,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async getAll(): Promise<Result<any[], AppError>> {
+    async getAll(): Promise<Result<Document[], AppError>> {
 
         return Result.Ok(null)
             .flatMap(async() => await this.repo.findAll())
@@ -42,7 +43,7 @@ export class DocumentService {
         
     }
 
-    async getById(documentId: string): Promise<Result<any, AppError>> {
+    async getById(documentId: string): Promise<Result<Document, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
@@ -53,7 +54,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async deleteById(documentId: string): Promise<Result<any, AppError>> {
+    async deleteById(documentId: string): Promise<Result<{ deletedDocument: Document, filePath: string }, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
@@ -77,7 +78,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async updateById(data: UpdateDocumentDTO): Promise<Result<any, AppError>> {
+    async updateById(data: UpdateDocumentDTO): Promise<Result<Document, AppError>> {
         const { documentId, title, description, tag } = data;
 
         return Result.Ok(documentId)
@@ -90,7 +91,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async search(data: SearchDocumentsDTO): Promise<Result<any[], AppError>> {
+    async search(data: SearchDocumentsDTO): Promise<Result<Document[], AppError>> {
 
         return Result.Ok(data)
             .flatMap(async (data) => await this.repo.search(data.title, data.tag, data.authorId))
