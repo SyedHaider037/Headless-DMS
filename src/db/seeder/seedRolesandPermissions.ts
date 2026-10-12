@@ -5,6 +5,7 @@ import { rolePermissions } from "../../schemas/rolePermission.schema.js";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { container } from "../../container.js";
+import { missingPairs, RolePermissionPair } from "./rolePermissionPairs.js";
 import { Role } from "../../entities/role.entity.js";
 import { Permission } from "../../entities/permission.entity.js";
 
@@ -66,20 +67,26 @@ export const seedRoleAndPermission = async () => {
 
     logger.info("Permissions seeded", { count: insertedPermissions.length });
 
+    const wanted: RolePermissionPair[] = [];
     for (const role of insertedRoles) {
         const allowedActions = rolePermissionMap[role.name as keyof typeof rolePermissionMap] || [];
 
         for (const action of allowedActions) {
             const permission = insertedPermissions.find((p) => p.action === action);
             if (!permission) continue;
-
-            await db.insert(rolePermissions).values({
-                id: randomUUID(),
-                roleId: role.id,
-                permissionId: permission.id,
-            }).onConflictDoNothing();
+            wanted.push({ roleId: role.id, permissionId: permission.id });
         }
     }
+
+    // only insert pairs that are not stored yet, so running the seed twice adds nothing
+    const existing = await db
+        .select({ roleId: rolePermissions.roleId, permissionId: rolePermissions.permissionId })
+        .from(rolePermissions);
+    const toInsert = missingPairs(wanted, existing);
+    for (const pair of toInsert) {
+        await db.insert(rolePermissions).values({ id: randomUUID(), ...pair });
+    }
+    logger.info("Role-permission pairs added", { added: toInsert.length, alreadyPresent: wanted.length - toInsert.length });
 
     logger.info("Roles and permissions seeded successfully");
 };
