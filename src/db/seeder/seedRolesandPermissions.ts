@@ -3,7 +3,10 @@ import { roles } from "../../schemas/role.schema.js";
 import { permissions } from "../../schemas/permission.schema.js";  
 import { rolePermissions } from "../../schemas/rolePermission.schema.js";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { container } from "../../container.js";
+import { Role } from "../../entities/role.entity.js";
+import { Permission } from "../../entities/permission.entity.js";
 
 const { logger } = container;
 
@@ -45,7 +48,7 @@ export const seedRoleAndPermission = async () => {
         roleData.map(async (role) => {
             const [existing] = await db.select().from(roles).where(eq(roles.name, role.name));
             if (existing) return existing;
-            const [inserted] = await db.insert(roles).values(role).returning();
+            const [inserted] = await db.insert(roles).values(Role.create(role).unwrap().toPersistence()).returning();
             return inserted;
         })
     );
@@ -56,7 +59,7 @@ export const seedRoleAndPermission = async () => {
         permissionData.map(async (perm) => {
             const [existing] = await db.select().from(permissions).where(eq(permissions.action, perm.action));
             if (existing) return existing;
-            const [inserted] = await db.insert(permissions).values(perm).returning();
+            const [inserted] = await db.insert(permissions).values(Permission.create(perm).unwrap().toPersistence()).returning();
             return inserted;
         })
     );
@@ -71,6 +74,7 @@ export const seedRoleAndPermission = async () => {
             if (!permission) continue;
 
             await db.insert(rolePermissions).values({
+                id: randomUUID(),
                 roleId: role.id,
                 permissionId: permission.id,
             }).onConflictDoNothing();

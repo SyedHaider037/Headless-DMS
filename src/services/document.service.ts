@@ -8,16 +8,15 @@ import { config } from "../config.js";
 import { ILogger } from "../interfaces/logger.interface.js";
 
 import { AppError, notFound, unauthorized } from "../errors/app-error.js";
-import { DocumentProps, DocumentSort } from "../entities/document.entity.js";
+import { Document, DocumentSort } from "../entities/document.entity.js";
 import { PaginatedCollection, PaginationOptions } from "../entities/pagination.entity.js";
+
 export class DocumentService {
     constructor(private readonly repo: IDocumentRepository, private readonly logger: ILogger) {}
 
-    async upload(data: CreateDocumentDTO) : Promise<Result<DocumentProps, AppError>> {
-        const { title, tag, userId, filePath, fileType, description } = data;
-
+    async upload(data: CreateDocumentDTO) : Promise<Result<Document, AppError>> {
         return Result.Ok(data)
-            .flatMap(async(d) => await this.repo.save({
+            .flatMap((d) => Document.create({
                 title: d.title,
                 description: d.description,
                 tag: d.tag,
@@ -25,14 +24,15 @@ export class DocumentService {
                 filePath: d.filePath,
                 fileType: d.fileType,
             }))
+            .flatMap(async(document) => await this.repo.save(document))
             .mapErr((err) => {
-                this.logger.error("Document upload failed", { userId, error: err.message });
+                this.logger.error("Document upload failed", { userId: data.userId, error: err.message });
                 return err;
             })
             .toPromise();
     }
 
-    async getAll(options: PaginationOptions): Promise<Result<PaginatedCollection<DocumentProps>, AppError>> {
+    async getAll(options: PaginationOptions): Promise<Result<PaginatedCollection<Document>, AppError>> {
 
         return Result.Ok(null)
             .flatMap(async() => await this.repo.findAll(options))
@@ -41,10 +41,10 @@ export class DocumentService {
                 return err;
             })
             .toPromise();
-        
+
     }
 
-    async getById(documentId: string): Promise<Result<DocumentProps, AppError>> {
+    async getById(documentId: string): Promise<Result<Document, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
@@ -55,16 +55,13 @@ export class DocumentService {
             .toPromise();
     }
 
-    async deleteById(documentId: string): Promise<Result<{ deletedDocument: DocumentProps, filePath: string }, AppError>> {
+    async deleteById(documentId: string): Promise<Result<{ deletedDocument: Document, filePath: string }, AppError>> {
 
         return Result.Ok(documentId)
             .flatMap(async(docId) => await this.repo.findById(docId))
-            .flatMap((doc) => {
-                const filePath = path.join(process.cwd(), "public", doc.filePath);
-                return Result.Ok({doc, filePath});
-            })
-            .flatMap(async({filePath}) => {
-                const deletedDocument = await this.repo.delete(documentId);
+            .flatMap(async(document) => {
+                const filePath = path.join(process.cwd(), "public", document.filePath);
+                const deletedDocument = await this.repo.delete(document.id);
                 return deletedDocument.map((deleted) => {
                     fs.unlink(filePath, (err) => {
                         if (err) this.logger.error("Failed to delete file from disk", { documentId, error: err.message });
@@ -79,12 +76,20 @@ export class DocumentService {
             .toPromise();
     }
 
-    async updateById(data: UpdateDocumentDTO): Promise<Result<DocumentProps, AppError>> {
+    async updateById(data: UpdateDocumentDTO): Promise<Result<Document, AppError>> {
         const { documentId, title, description, tag } = data;
 
         return Result.Ok(documentId)
             .flatMap(async () => await this.repo.findById(documentId))
-            .flatMap(async () => await this.repo.update(documentId, {title, description, tag}))
+            .flatMap((document) => {
+                // every change goes through the entity, which enforces its own rules
+                let changed: Result<Document, AppError> = Result.Ok(document);
+                if (title !== undefined) changed = changed.flatMap((d) => d.rename(title));
+                if (tag !== undefined) changed = changed.flatMap((d) => d.changeTag(tag));
+                if (description !== undefined) changed = changed.flatMap((d) => d.changeDescription(description));
+                return changed;
+            })
+            .flatMap(async (document) => await this.repo.update(document))
             .mapErr((err) => {
                 this.logger.error("Document update failed", { documentId, error: err.message });
                 return err;
@@ -92,7 +97,7 @@ export class DocumentService {
             .toPromise();
     }
 
-    async search(data: SearchDocumentsDTO, options: PaginationOptions, sort?: DocumentSort): Promise<Result<PaginatedCollection<DocumentProps>, AppError>> {
+    async search(data: SearchDocumentsDTO, options: PaginationOptions, sort?: DocumentSort): Promise<Result<PaginatedCollection<Document>, AppError>> {
 
         return Result.Ok(data)
             .flatMap(async (data) => await this.repo.search(data, options, sort))

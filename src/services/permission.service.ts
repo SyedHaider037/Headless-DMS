@@ -3,6 +3,7 @@ import { Result } from "@carbonteq/fp";
 import { ILogger } from "../interfaces/logger.interface.js";
 
 import { AppError } from "../errors/app-error.js";
+
 export class PermissionService{
     constructor(private readonly repo: IPermissionRepository, private readonly logger: ILogger){}
 
@@ -16,7 +17,8 @@ export class PermissionService{
             })
             .flatMap(async({document, role}): Promise<Result<boolean, AppError>> => {
                 if (!document || !role) return Result.Ok(false);
-                if (document.authorId === userId || role.name === "ADMIN") {
+                // the owner may change a document, and an admin may change any document
+                if (document.isOwnedBy(userId) || role.isAdmin()) {
                     return await this.repo.checkRolePermission(roleId, action);
                 }
                 return Result.Ok(false);

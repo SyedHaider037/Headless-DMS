@@ -30,15 +30,6 @@ export interface UserSummary {
     createdAt: Date;
 }
 
-export interface NewUser {
-    username: string;
-    email: string;
-    password: string;
-    roleId: string;
-}
-
-export type CreatedUser = UserSummary;
-
 const USERNAME_MIN = 8;
 const FIELD_MAX = 255;
 

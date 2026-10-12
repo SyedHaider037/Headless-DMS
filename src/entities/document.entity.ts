@@ -146,15 +146,6 @@ export class Document {
     }
 }
 
-export interface NewDocument {
-    title: string;
-    description?: string;
-    tag: string;
-    authorId: string;
-    filePath: string;
-    fileType: string;
-}
-
 export interface DocumentFilters {
     title?: string;
     tag?: string;

@@ -5,11 +5,13 @@ import { Result } from "@carbonteq/fp";
 import { ILogger } from "../interfaces/logger.interface.js";
 
 import { AppError, conflict, internal, unauthorized } from "../errors/app-error.js";
-import { AuthenticatedUser, CreatedUser } from "../entities/user.entity.js";
+import { AuthenticatedUser, User, UserSummary } from "../entities/user.entity.js";
+import { ROLE_USER } from "../entities/role.entity.js";
+
 export class UserService {
     constructor(private readonly repo: IUserRepository, private readonly logger: ILogger){}
 
-    async register(data: RegisterUserDTO): Promise<Result<CreatedUser, AppError>> {
+    async register(data: RegisterUserDTO): Promise<Result<UserSummary, AppError>> {
         const { username, email, password } = data;
 
         return Result.Ok({email, username})
@@ -24,17 +26,19 @@ export class UserService {
                 return Result.Ok(hashedPassword);
             })
             .flatMap( async(hashedPassword) => {
-                const roleRecord = await this.repo.findRoleByName("USER");
+                const roleRecord = await this.repo.findRoleByName(ROLE_USER);
                 return roleRecord
                     .mapErr((err) => err.kind === "NotFound" ? internal("Default role USER is missing; run the seeder") : err)
                     .map((roleRecord) => ({hashedPassword, roleRecord}));
             })
-            .flatMap( async({hashedPassword, roleRecord}) => await this.repo.save({
+            .flatMap( ({hashedPassword, roleRecord}) => User.create({
                 username,
                 email,
-                password: hashedPassword,
+                passwordHash: hashedPassword,
                 roleId: roleRecord.id
             }))
+            .flatMap( async(user) => await this.repo.save(user))
+            .map((user) => user.toSummary())
             .mapErr((err) => {
                 this.logger.warn("User registration failed", { error: err.message });
                 return err;
@@ -51,7 +55,7 @@ export class UserService {
                 return found.mapErr((err) => err.kind === "NotFound" ? unauthorized("Invalid email or password") : err);
             })
             .flatMap( async(user) => {
-                const isPasswordValid = await verifyPassword(password, user.password);
+                const isPasswordValid = await verifyPassword(password, user.passwordHash);
                 return isPasswordValid ? Result.Ok(user) : Result.Err(unauthorized("Invalid email or password"));
             })
             .flatMap( async(user) => {
@@ -63,11 +67,10 @@ export class UserService {
                 });
                 const refreshToken = generateRefreshToken({ id: user.id });
 
-                const updatedUser = await this.repo.updateRefreshToken(user.id, refreshToken);
-                return updatedUser.map((updated) => {
-                    const {password: _password, refreshToken: _refreshToken, ...userData} = updated;
-                    return { userData, accessToken, refreshToken };
-                });
+                const withToken = user.assignRefreshToken(refreshToken);
+                if (withToken.isErr()) return Result.Err(withToken.unwrapErr());
+                const updatedUser = await this.repo.update(withToken.unwrap());
+                return updatedUser.map((updated) => ({ userData: updated.toAuthenticated(), accessToken, refreshToken }));
             })
             .mapErr((err) => {
                 this.logger.warn("User login failed", { error: err.message });
@@ -79,10 +82,10 @@ export class UserService {
     async logout(userId: string): Promise<Result<void, AppError>> {
 
         return Result.Ok(userId)
-            .flatMap( async() => {
-                const updated = await this.repo.updateRefreshToken(userId, null);
-                return updated.map(() => undefined);
-            })
+            .flatMap( async() => await this.repo.findById(userId))
+            .flatMap( (user) => user.assignRefreshToken(null))
+            .flatMap( async(user) => await this.repo.update(user))
+            .map(() => undefined)
             .mapErr((err) => {
                 this.logger.warn("User logout failed", { userId, error: err.message });
                 return err;
@@ -106,7 +109,9 @@ export class UserService {
                 })
                 const newRefreshToken = generateRefreshToken({ id: user.id });
 
-                const updated = await this.repo.updateRefreshToken(user.id, newRefreshToken);
+                const withToken = user.assignRefreshToken(newRefreshToken);
+                if (withToken.isErr()) return Result.Err(withToken.unwrapErr());
+                const updated = await this.repo.update(withToken.unwrap());
                 return updated.map(() => ({accessToken: newAccessToken, refreshToken: newRefreshToken}));
             })
             .mapErr((err) => {

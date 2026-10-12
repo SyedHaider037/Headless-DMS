@@ -8,29 +8,31 @@ import { IPermissionRepository } from "../interfaces/permission.interface.js";
 import { Result } from "@carbonteq/fp";
 
 import { AppError, internal } from "../errors/app-error.js";
-import { DocumentProps, DocumentChanges, NewDocument } from "../entities/document.entity.js";
-import { RoleProps } from "../entities/role.entity.js";
+import { Document } from "../entities/document.entity.js";
+import { Role } from "../entities/role.entity.js";
+
 export class PermissionRepository implements IPermissionRepository{
 
-    async findDocumentById(documentId: string): Promise<Result<DocumentProps | null, AppError>> {
+    // "not found" is a normal answer here (null); only a database failure is an error
+    async findDocumentById(documentId: string): Promise<Result<Document | null, AppError>> {
         try {
-            const [document] = await db
+            const [row] = await db
                 .select()
                 .from(documents)
                 .where(eq(documents.id, documentId))
-            return document ? Result.Ok(document) : Result.Ok(null); 
+            return Result.Ok(row ? Document.fromPersistence(row) : null);
         } catch (error) {
             return Result.Err(internal("Failed to fetch document"));
-        }    
+        }
     }
 
-    async findRoleById(roleId :string): Promise<Result<RoleProps | null, AppError>> {
+    async findRoleById(roleId :string): Promise<Result<Role | null, AppError>> {
         try {
-            const [role] = await db
+            const [row] = await db
                 .select()
                 .from(roles)
                 .where(eq(roles.id, roleId));
-            return role ? Result.Ok(role) : Result.Ok(null);
+            return Result.Ok(row ? Role.fromPersistence(row) : null);
         } catch (error) {
             return Result.Err(internal("Failed to fetch role"));
         }

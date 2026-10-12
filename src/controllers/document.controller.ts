@@ -3,7 +3,7 @@ import { createDocumentSchema, updateDocumentSchema, listDocumentsQuerySchema, s
 import fs from "fs";
 import path from "path";
 import { container } from "../container.js";
-import { DocumentProps, PublicDocument } from "../entities/document.entity.js";
+import { Document, PublicDocument } from "../entities/document.entity.js";
 import { PaginatedCollection } from "../entities/pagination.entity.js";
 import { sendError } from "../errors/http.js";
 import { validation } from "../errors/app-error.js";
@@ -11,12 +11,10 @@ import { matchRes } from "@carbonteq/fp";
 
 const { documentService, logger } = container;
 
-// never expose the server-side file path to clients
-const toPublicDocument = ({ filePath, ...document }: DocumentProps): PublicDocument => document;
-
-const toPublicPage = (page: PaginatedCollection<DocumentProps>): PaginatedCollection<PublicDocument> => ({
+// the entity decides what clients may see: the server-side file path never leaves
+const toPublicPage = (page: PaginatedCollection<Document>): PaginatedCollection<PublicDocument> => ({
     ...page,
-    items: page.items.map(toPublicDocument),
+    items: page.items.map((document) => document.toPublic()),
 });
 
 // a rejected upload must not leave its file on disk
@@ -45,7 +43,7 @@ export const uploadDocument  = async ( req: Request, res: Response) => {
     const document = await documentService.upload({title, tag, userId: user.id, filePath: relativePath, fileType: file.mimetype, description});
 
     return matchRes(document, {
-        Ok: (saved) => res.status(201).json({ document: toPublicDocument(saved), message: "Document uploaded successfully" }),
+        Ok: (saved) => res.status(201).json({ document: saved.toPublic(), message: "Document uploaded successfully" }),
         Err: (err) => {
             void discardUpload(file);
             return sendError(res, err);
@@ -75,7 +73,7 @@ export const getDocumentById = async(req: Request, res: Response) => {
     const document = await documentService.getById(parsedId);
 
     return matchRes(document, {
-        Ok: (found) => res.status(200).json({ document: toPublicDocument(found), message: "Document fetched successfully" }),
+        Ok: (found) => res.status(200).json({ document: found.toPublic(), message: "Document fetched successfully" }),
         Err: (err) => sendError(res, err)
     });
 }
@@ -105,7 +103,7 @@ export const updateDocument = async (req: Request, res: Response) => {
     const updatedDocument = await documentService.updateById({documentId: parsedId, title, description, tag});
 
     return matchRes(updatedDocument, {
-        Ok: (updated) => res.status(200).json({ document: toPublicDocument(updated), message: "Document updated successfully" }),
+        Ok: (updated) => res.status(200).json({ document: updated.toPublic(), message: "Document updated successfully" }),
         Err: (err) => sendError(res, err)
     });
 }
